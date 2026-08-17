@@ -44,19 +44,3 @@
   gap: 8px;
   align-items: center;
 }
-
-.importBtn {
-  position: relative;
-  overflow: hidden;
-  background: #212830;
-  color: #e6edf3;
-  border: 1px solid #3d444d;
-  border-radius: 6px;
-  padding: 8px 14px;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.importBtn input {
-  display: none;
-}

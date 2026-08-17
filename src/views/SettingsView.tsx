@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_CONFIG, type Config } from '../types/config'
 import { loadConfig, saveConfig } from '../store/config'
 import { downloadText, exportDatabase, importDatabase } from '../store/export'
@@ -39,6 +39,7 @@ export function SettingsView() {
   const [config, setConfig] = useState<Config>(() => loadConfig())
   const [saved, setSaved] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const importRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setConfig(loadConfig())
@@ -256,20 +257,25 @@ export function SettingsView() {
         >
           Export data
         </button>
-        <label
-          className={styles.importBtn}
+        <button
+          type="button"
+          className="secondary"
           title="Replace settings and stored games from a previously exported JSON file."
+          onClick={() => importRef.current?.click()}
         >
           Import data
-          <input
-            type="file"
-            accept="application/json"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void onImport(file)
-            }}
-          />
-        </label>
+        </button>
+        <input
+          ref={importRef}
+          type="file"
+          accept="application/json"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) void onImport(file)
+            e.target.value = ''
+          }}
+        />
         {saved || message ? <span className="hint">{message}</span> : null}
       </div>
     </div>
