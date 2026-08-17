@@ -6,14 +6,14 @@ Client-only React + TypeScript + Vite app. No backend. Read [README.md](README.m
 
 ```
 src/types/        Config, GameRecord, MoveRecord
-src/lib/          freeze math, clocks, phase, Maia tokenize/decode
-src/engine/       Maia RPC client (seq ids)
+src/lib/          freeze math, clocks, phase, Maia tokenize/decode, Stockfish score→pawns
+src/engine/       Maia RPC client (seq ids); Stockfish UCI client
 src/workers/      maia.worker.ts — one ONNX session
 src/store/        localStorage config, IndexedDB, JSON export/import
 src/game/         useGame — loop, freeze state, clocks
 src/views/        Play, Settings, Report, Dashboard, About
-src/components/   Board, Clocks, FreezeOverlay, MoveList
-public/engines/   stockfish-18-lite-single.{js,wasm} (not loaded)
+src/components/   Board, Clocks, FreezeOverlay, MoveList, EvalChart
+public/engines/   stockfish-18-lite-single.{js,wasm} — eval Worker during play (not freeze)
 public/ort/       copied from onnxruntime-web on Vite start (gitignored)
 public/models/    optional local ONNX; missing .onnx URLs must 404, never SPA HTML
 public/books/     first 6 moves of 8moves_v3 as position hashes; skip eval while the move stays in book
@@ -21,11 +21,13 @@ public/books/     first 6 moves of 8moves_v3 as position hashes; skip eval while
 
 Routes: `/`, `/settings`, `/report/:gameId`, `/dashboard`, `/about`.
 
-Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engines. Maia is a module Worker with onnxruntime-web. RPC uses incrementing ids; ignore stale replies.
+Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engines. Maia is a module Worker with onnxruntime-web. Stockfish is a classic Worker (`stockfish-18-lite-single`) used only to record eval after each **committed** ply. RPC uses incrementing ids; ignore stale replies.
 
 ## Invariants
 
 **Freeze overlay.** Identical for real and decoy freezes. No evals, no channel, no hints during play. Reveal only after `maxRetries` or on the post-game report. After `maxRetries`, show the expert top as an arrow; the user may play any legal move. Do not auto-play the expert move.
+
+**Stockfish eval.** After a ply is committed (accepted user move or opponent move), queue a short Stockfish search. Do not await it for freeze/verdict/clocks. Store White-POV **pawns** (`cp / 100`); if SF reports mate, also store mate-in-N (positive = White mates). Frozen attempts that are undone are not evaluated. Report: eval timeline (ply on x, pawns on y) and an Eval column on the moves table. Older games without evals omit the graph.
 
 **Decoys.** With probability `decoyFreezeRate`, freeze a move that passed optimality. Log `trigger: 'decoy'`; exclude from quality metrics. Repeating the **same** move is accepted (confidence) — do not roll another decoy on that retry. A different move is re-evaluated normally. If that later move passes without a real freeze, the ply still logs `decoy` so the report can show both tries. Always wait `verdictGateMs` before showing the verdict (including same-move decoy accepts). Report move rows: real freezes stay highlighted as today; decoys use the same yellow (`#f0c14b`) as elsewhere. Do not show a trigger column.
 
@@ -53,12 +55,12 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 ## Persistence
 
 - Config: `localStorage` key `blitzdrill.config.v1`. Defaults in `src/types/config.ts`.
-- IndexedDB `blitzdrill`: `games` keyed by `gameId`; `moves` keyed by `[gameId, ply]`, index `gameId`.
+- IndexedDB `blitzdrill`: `games` keyed by `gameId`; `moves` keyed by `[gameId, ply]`, index `gameId`. `GameRecord.sfEvals` is the full ply timeline; `MoveRecord.sfEval` / `sfMate` is the eval after that user move.
 - `isForcing` and `phase` are written at insert time. Phase: opening if `ply < 24`; endgame if non-pawn non-king pieces ≤ 6; else middlegame. `isForcing` if the user’s move is capture, check, or promotion.
 - JSON export/import covers config + both stores.
 
 ## Tests
 
-`npm test` (Vitest). Cover freeze/exclusions, Maia vocab/tokenize/decode, ONNX-bytes guard, opening book, config defaults. Do not add Playwright unless asked.
+`npm test` (Vitest). Cover freeze/exclusions, Maia vocab/tokenize/decode, ONNX-bytes guard, opening book, config defaults, Stockfish score→pawns. Do not add Playwright unless asked.
 
 When changing freeze math, add a unit test first. When changing Maia encode/decode, extend `src/lib/maia/maia.test.ts` before wiring UI.
