@@ -24,7 +24,7 @@ import {
   tickClocks,
   type ClockState,
 } from '../lib/clocks'
-import { commitAttempts, freezeVerdict, isRealFreezeTrigger, maybeDecoy, policyRatio, skipEvalReason } from '../lib/freeze'
+import { commitAttempts, freezeVerdict, isRealFreezeTrigger, maybeDecoy, policyRatio, recordedTrigger, skipEvalReason } from '../lib/freeze'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { moveProb, sampleMove, topMove } from '../lib/maia/decode'
 import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type EvalComment } from '../lib/pgn'
@@ -68,6 +68,7 @@ interface PendingPly {
   skipDecoy: boolean
   didFreeze: boolean
   hadRealFreeze: boolean
+  hadDecoy: boolean
 }
 
 function stampAttemptRatio(pending: PendingPly | null, ratio: number): void {
@@ -276,6 +277,8 @@ export function useGame() {
       )
       const retries = Math.max(0, attempts.length - 1)
       const ply = pending.ply
+      const hadRealFreeze = pending.hadRealFreeze || isRealFreezeTrigger(extras.trigger)
+      const trigger = recordedTrigger(extras.trigger, pending.hadDecoy, hadRealFreeze)
       if (extras.evalComment) {
         const text = logEval({
           ...extras.evalComment,
@@ -284,6 +287,7 @@ export function useGame() {
           attempts,
           retries,
           resolved: extras.resolved,
+          trigger,
         })
         evalCommentsRef.current.set(ply, text)
       }
@@ -298,7 +302,7 @@ export function useGame() {
         wdlDelta: extras.wdlDelta,
         sfBestMove: extras.sfBestMove,
         thresholdTopMove: extras.thresholdTopMove,
-        trigger: extras.trigger,
+        trigger,
         retries,
         resolved: extras.resolved,
         clockRemainingMs: pending.clockRemainingMs,
@@ -306,7 +310,7 @@ export function useGame() {
         isForcing: extras.isForcing,
         phase: phaseOf(pending.fenBefore, ply),
         evaluated: extras.evaluated,
-        hadRealFreeze: pending.hadRealFreeze || isRealFreezeTrigger(extras.trigger),
+        hadRealFreeze,
       })
       if (pending.didFreeze && config.freezeClockMode === 'penalty') {
         const deducted = deductMs(
@@ -450,6 +454,7 @@ export function useGame() {
           skipDecoy: false,
           didFreeze: false,
           hadRealFreeze: false,
+          hadDecoy: false,
         }
       } else {
         pendingRef.current.attempts.push(uci)
@@ -590,7 +595,10 @@ export function useGame() {
           }
           if (pending) {
             pending.decoyActive = decoy && !channel.freeze
-            if (decoy && !channel.freeze) pending.originalMove = pending.originalMove ?? uci
+            if (decoy && !channel.freeze) {
+              pending.hadDecoy = true
+              pending.originalMove = pending.originalMove ?? uci
+            }
           }
           logEval({
             ...evalComment,

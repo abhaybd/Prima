@@ -47,6 +47,17 @@ export function isRealFreezeTrigger(trigger: FreezeTrigger): boolean {
   return trigger === 'ratio' || trigger === 'wdl' || trigger === 'both'
 }
 
+/** Trigger stored on the ply. A decoy stays a decoy if a later different move passed. */
+export function recordedTrigger(
+  lastTrigger: FreezeTrigger,
+  hadDecoy: boolean,
+  hadRealFreeze: boolean,
+): FreezeTrigger {
+  if (hadRealFreeze || isRealFreezeTrigger(lastTrigger)) return lastTrigger
+  if (hadDecoy) return 'decoy'
+  return lastTrigger
+}
+
 /** True if any attempt on the ply was a real freeze (not a decoy). */
 export function plyHadRealFreeze(m: {
   trigger: FreezeTrigger

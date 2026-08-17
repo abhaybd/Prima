@@ -190,7 +190,7 @@ export function ReportView() {
                     .join(' ')}
                   title={
                     m.trigger === 'decoy'
-                      ? 'Decoy: this move passed, but was frozen anyway so a freeze is not a free hint that the move was wrong.'
+                      ? 'Decoy: a passing move was frozen anyway so a freeze is not a free hint that the move was wrong.'
                       : undefined
                   }
                   onClick={() => setSelected(m)}
