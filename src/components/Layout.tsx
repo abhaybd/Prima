@@ -18,6 +18,7 @@ export function Layout({ children }: { children: ReactNode }) {
             Play
           </NavLink>
           <NavLink to={debugHref('/dashboard', debug)}>Dashboard</NavLink>
+          <NavLink to={debugHref('/about', debug)}>About</NavLink>
           <NavLink to={debugHref('/settings', debug)}>Settings</NavLink>
         </nav>
       </header>

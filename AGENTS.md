@@ -11,7 +11,7 @@ src/engine/       Maia RPC client (seq ids)
 src/workers/      maia.worker.ts — one ONNX session
 src/store/        localStorage config, IndexedDB, JSON export/import
 src/game/         useGame — loop, freeze state, clocks
-src/views/        Play, Settings, Report, Dashboard
+src/views/        Play, Settings, Report, Dashboard, About
 src/components/   Board, Clocks, FreezeOverlay, MoveList
 public/engines/   stockfish-18-lite-single.{js,wasm} (not loaded)
 public/ort/       copied from onnxruntime-web on Vite start (gitignored)
@@ -19,7 +19,7 @@ public/models/    optional local ONNX; missing .onnx URLs must 404, never SPA HT
 public/books/     first 6 moves of 8moves_v3 as position hashes; skip eval while the move stays in book
 ```
 
-Routes: `/`, `/settings`, `/report/:gameId`, `/dashboard`.
+Routes: `/`, `/settings`, `/report/:gameId`, `/dashboard`, `/about`.
 
 Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engines. Maia is a module Worker with onnxruntime-web. RPC uses incrementing ids; ignore stale replies.
 

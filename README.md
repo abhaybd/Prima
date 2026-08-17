@@ -29,6 +29,7 @@ Moves that stay in the opening book, forced-only-move positions, and already-dec
 | `/settings` | Difficulty, freeze behavior, backup |
 | `/report/:gameId` | Post-game stats and move-by-move replay (optimality and attempts shown *after* the game) |
 | `/dashboard` | Cross-game stats. Primary chart: optimality versus remaining clock |
+| `/about` | Product intent, how freezes work, privacy, licenses |
 
 **Settings that are easy to mix up**
 
