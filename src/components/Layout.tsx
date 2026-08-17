@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { debugHref, useDebugMode } from '../lib/debug'
 import { Credits } from './Credits'
+import { WelcomeDialog } from './WelcomeDialog'
 import styles from './Layout.module.css'
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -26,6 +27,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <footer className={styles.footer}>
         <Credits />
       </footer>
+      <WelcomeDialog />
     </div>
   )
 }
