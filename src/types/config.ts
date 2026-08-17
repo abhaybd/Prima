@@ -18,7 +18,6 @@ export interface Config {
   freezePenaltySeconds: number
   freezeGraceSeconds: number
   decoyFreezeRate: number
-  verdictGateMs: number
   timeControl: TimeControl
   userColor: UserColorPref
   maiaVariant: MaiaVariant
@@ -34,7 +33,6 @@ export const DEFAULT_CONFIG: Config = {
   freezePenaltySeconds: 5,
   freezeGraceSeconds: 3,
   decoyFreezeRate: 0.08,
-  verdictGateMs: 250,
   timeControl: { initial: 180, increment: 0 },
   userColor: 'w',
   maiaVariant: '23m',

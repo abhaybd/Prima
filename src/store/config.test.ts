@@ -87,6 +87,28 @@ describe('config persistence', () => {
     expect(loadConfig().configVersion).toBe(3)
   })
 
+  it('drops the old verdictGateMs setting', () => {
+    const memory = new Map<string, string>()
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: {
+        getItem: (k: string) => memory.get(k) ?? null,
+        setItem: (k: string, v: string) => memory.set(k, v),
+        removeItem: (k: string) => memory.delete(k),
+      },
+      configurable: true,
+    })
+    memory.set(
+      CONFIG_STORAGE_KEY,
+      JSON.stringify({
+        configVersion: 3,
+        verdictGateMs: 250,
+        opponentElo: 1800,
+      }),
+    )
+    expect(loadConfig()).not.toHaveProperty('verdictGateMs')
+    expect(loadConfig().opponentElo).toBe(1800)
+  })
+
   it('drops the old Stockfish WDL settings', () => {
     const memory = new Map<string, string>()
     Object.defineProperty(globalThis, 'localStorage', {

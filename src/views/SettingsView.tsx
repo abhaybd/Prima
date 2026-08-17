@@ -158,16 +158,6 @@ export function SettingsView() {
               onChange={(e) => patch('decoyFreezeRate', Number(e.target.value))}
             />
           </Field>
-          <Field
-            label="Verdict gate (ms)"
-            tip="Minimum delay before showing freeze or pass, so how long the engines took cannot leak the answer."
-          >
-            <input
-              type="number"
-              value={config.verdictGateMs}
-              onChange={(e) => patch('verdictGateMs', Number(e.target.value))}
-            />
-          </Field>
         </div>
         <div className={styles.grid}>
           <Field

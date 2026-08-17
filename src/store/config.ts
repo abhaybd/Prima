@@ -65,7 +65,6 @@ export function mergeConfig(base: Config, patch: Partial<Config>): Config {
     freezePenaltySeconds: num(patch.freezePenaltySeconds, base.freezePenaltySeconds),
     freezeGraceSeconds: num(patch.freezeGraceSeconds, base.freezeGraceSeconds),
     decoyFreezeRate: num(patch.decoyFreezeRate, base.decoyFreezeRate),
-    verdictGateMs: num(patch.verdictGateMs, base.verdictGateMs),
     timeControl,
     userColor: isUserColor(patch.userColor) ? patch.userColor : base.userColor,
     maiaVariant: isMaiaVariant(patch.maiaVariant) ? patch.maiaVariant : base.maiaVariant,

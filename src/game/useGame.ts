@@ -118,10 +118,6 @@ const initialState = (): PlayState => ({
   debugNotes: [],
 })
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 export function useGame() {
   const [state, setState] = useState<PlayState>(initialState)
   const chessRef = useRef(new Chess())
@@ -455,7 +451,6 @@ export function useGame() {
         evaluatingRef.current = true
         applyUci(chess, uci)
         syncBoard({ status: 'evaluating' })
-        await delay(configRef.current.verdictGateMs)
         evaluatingRef.current = false
         await acceptUserMove(uci, {
           ratio: 1,
@@ -527,10 +522,8 @@ export function useGame() {
         const opponentPromise = terminalAfter
           ? Promise.resolve(null)
           : maia.policy(after.fen(), config.opponentElo, config.opponentElo)
-        const gate = delay(config.verdictGateMs)
 
         if (skip) {
-          await gate
           evaluatingRef.current = false
           stampAttemptRatio(pendingRef.current, 0)
           const revealed = Boolean(pendingRef.current?.revealedTop)
@@ -581,7 +574,6 @@ export function useGame() {
 
         const [threshold] = await Promise.all([
           thresholdPromise,
-          gate,
           opponentPromise,
         ])
 
