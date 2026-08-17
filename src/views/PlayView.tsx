@@ -56,6 +56,22 @@ const TIME_PRESETS: { label: string; timeControl: TimeControl }[] = [
   { label: '5+0', timeControl: { initial: 300, increment: 0 } },
 ]
 
+function boardOutlineClass(state: {
+  status: string
+  userColor: 'w' | 'b'
+  lastResult: string
+}): string {
+  if (state.status === 'frozen') return styles.frozenFrame
+  if (state.status !== 'gameover') return ''
+  if (state.lastResult === '1/2-1/2') return styles.drawFrame
+  const userWon =
+    (state.userColor === 'w' && state.lastResult === '1-0') ||
+    (state.userColor === 'b' && state.lastResult === '0-1')
+  if (userWon) return styles.winFrame
+  if (state.lastResult === '1-0' || state.lastResult === '0-1') return styles.lossFrame
+  return ''
+}
+
 function matchingTimePreset(tc: TimeControl): string {
   const match = TIME_PRESETS.find(
     (p) => p.timeControl.initial === tc.initial && p.timeControl.increment === tc.increment,
@@ -100,16 +116,16 @@ export function PlayView() {
   return (
     <div className={styles.layout}>
       <div className={styles.boardCol}>
-        <div
-          className={`${styles.boardFrame}${
-            state.status === 'frozen' ? ` ${styles.frozenFrame}` : ''
-          }${state.timedOut ? ` ${styles.flaggedFrame}` : ''}`}
-        >
-          {state.timedOut ? (
-            <div className={styles.timeoutBanner}>
-              <div className={styles.timeoutTitle}>Ran out of time</div>
-            </div>
-          ) : null}
+        <div className={styles.boardFrame}>
+          <div className={boardOutlineClass(state)}>
+            <Board
+              fen={state.fen}
+              orientation={state.userColor === 'w' ? 'white' : 'black'}
+              interactive={interactive}
+              hintUci={state.freeze?.revealed?.thresholdTop}
+              onMove={onDrop}
+            />
+          </div>
           {state.status === 'frozen' && state.freeze ? (
             <FreezeOverlay
               key={state.freeze.revealed ? 'revealed' : 'frozen'}
@@ -118,13 +134,6 @@ export function PlayView() {
               revealed={Boolean(state.freeze.revealed)}
             />
           ) : null}
-          <Board
-            fen={state.fen}
-            orientation={state.userColor === 'w' ? 'white' : 'black'}
-            interactive={interactive}
-            hintUci={state.freeze?.revealed?.thresholdTop}
-            onMove={onDrop}
-          />
         </div>
       </div>
       <aside className={`panel ${styles.side}`}>
