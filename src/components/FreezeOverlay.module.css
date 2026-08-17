@@ -1,26 +1,22 @@
-.overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 18%;
-  background: rgba(8, 10, 14, 0.45);
-  pointer-events: none;
-  z-index: 2;
-}
-
-.card {
-  background: #161b22ee;
+.banner {
+  width: 100%;
+  margin-bottom: 10px;
+  background: #161b22;
   border: 1px solid #f0c14b;
   border-radius: 10px;
-  padding: 16px 22px;
+  padding: 12px 16px;
   text-align: center;
-  min-width: 200px;
+  cursor: pointer;
+}
+
+.banner:hover,
+.banner:focus-visible {
+  background: #1c2330;
+  outline: none;
 }
 
 .title {
-  font-size: 22px;
+  font-size: 18px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #f0c14b;
@@ -28,12 +24,18 @@
 }
 
 .body {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: #d0d7de;
 }
 
 .meta {
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: 12px;
+  color: #8b98a5;
+}
+
+.dismiss {
+  margin-top: 4px;
+  font-size: 11px;
   color: #8b98a5;
 }
