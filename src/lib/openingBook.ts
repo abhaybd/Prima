@@ -2,7 +2,7 @@ const HTML_START = /^\s*</
 const FNV_OFFSET = 0xcbf29ce484222325n
 const FNV_PRIME = 0x100000001b3n
 
-export const OPENING_BOOK_URL = '/books/8moves_v3.u64'
+export const OPENING_BOOK_URL = `${import.meta.env.BASE_URL}books/8moves_v3.u64`
 export const OPENING_BOOK_MIN_BYTES = 8 * 1_000
 
 export function positionKey(fen: string): string {

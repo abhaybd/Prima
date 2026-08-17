@@ -27,7 +27,7 @@ function modelUrls(variant: MaiaVariant): string[] {
   const file = MODEL_FILES[variant]
   return [
     `https://huggingface.co/bqrio/maia3-onnx/resolve/main/${file}`,
-    `/models/${file}`,
+    `${import.meta.env.BASE_URL}models/${file}`,
   ]
 }
 

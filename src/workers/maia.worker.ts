@@ -11,12 +11,12 @@ function reply(id: number, result?: unknown, error?: string): void {
 }
 
 function configureOrt(): void {
-  const origin = self.location.origin
+  const base = import.meta.env.BASE_URL
   ort.env.wasm.numThreads = 1
   ort.env.wasm.proxy = false
   ort.env.wasm.wasmPaths = {
-    wasm: `${origin}/ort/ort-wasm-simd-threaded.wasm`,
-    mjs: `${origin}/ort/ort-wasm-simd-threaded.mjs`,
+    wasm: `${base}ort/ort-wasm-simd-threaded.wasm`,
+    mjs: `${base}ort/ort-wasm-simd-threaded.mjs`,
   }
 }
 

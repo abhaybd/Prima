@@ -44,7 +44,15 @@ function ortAssetsPlugin(): Plugin {
   }
 }
 
+function viteBase(): string {
+  const raw = process.env.BASE_PATH?.trim()
+  if (!raw || raw === '/') return '/'
+  const withLead = raw.startsWith('/') ? raw : `/${raw}`
+  return withLead.endsWith('/') ? withLead : `${withLead}/`
+}
+
 export default defineConfig({
+  base: viteBase(),
   plugins: [react(), ortAssetsPlugin()],
   optimizeDeps: {
     exclude: ['onnxruntime-web'],

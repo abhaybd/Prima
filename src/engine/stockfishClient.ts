@@ -3,7 +3,7 @@ import { evalFromInfoLines, sideToMoveFromFen } from '../lib/sfEval'
 import type { SfEval } from '../types/game'
 
 export const SF_MOVETIME_MS = 100
-const SF_WORKER_URL = '/engines/stockfish-18-lite-single.js'
+const SF_WORKER_URL = `${import.meta.env.BASE_URL}engines/stockfish-18-lite-single.js`
 
 export interface SfEvaluation extends SfEval {
   bestMove: string
