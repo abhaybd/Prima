@@ -11,6 +11,12 @@
   gap: 12px;
 }
 
+.clockGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .labelRow {
   display: inline-flex;
   align-items: center;

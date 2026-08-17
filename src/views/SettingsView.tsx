@@ -163,46 +163,6 @@ export function SettingsView() {
             />
           </Field>
           <Field
-            label="Clock during freeze"
-            tip="Pause + penalty stops the clock then deducts time. Keep running is closest to real blitz. Pause only stops the clock. Pause, then run gives a short pause before the clock starts again."
-          >
-            <select
-              value={config.freezeClockMode}
-              onChange={(e) =>
-                patch('freezeClockMode', e.target.value as Config['freezeClockMode'])
-              }
-            >
-              <option value="penalty">Pause + penalty</option>
-              <option value="running">Keep running</option>
-              <option value="paused">Pause only</option>
-              <option value="grace">Pause, then run</option>
-            </select>
-          </Field>
-          {config.freezeClockMode === 'penalty' ? (
-            <Field
-              label="Penalty seconds"
-              tip="Seconds deducted from your clock when a freeze is resolved."
-            >
-              <input
-                type="number"
-                value={config.freezePenaltySeconds}
-                onChange={(e) => patch('freezePenaltySeconds', Number(e.target.value))}
-              />
-            </Field>
-          ) : null}
-          {config.freezeClockMode === 'grace' ? (
-            <Field
-              label="Grace seconds"
-              tip="How long the clock stays paused. After this, it runs if you are still frozen. A passing move during the pause ends the freeze immediately."
-            >
-              <input
-                type="number"
-                value={config.freezeGraceSeconds}
-                onChange={(e) => patch('freezeGraceSeconds', Number(e.target.value))}
-              />
-            </Field>
-          ) : null}
-          <Field
             label="Decoy freeze rate"
             tip="Chance of freezing a move that already passed, so a freeze is not a free hint that the move was wrong."
           >
@@ -233,6 +193,48 @@ export function SettingsView() {
               onChange={(e) => patch('openingSkipPlies', Number(e.target.value))}
             />
           </Field>
+          <div className={styles.clockGroup}>
+            <Field
+              label="Clock during freeze"
+              tip="Pause + penalty stops the clock then deducts time. Keep running is closest to real blitz. Pause only stops the clock. Pause, then run gives a short pause before the clock starts again."
+            >
+              <select
+                value={config.freezeClockMode}
+                onChange={(e) =>
+                  patch('freezeClockMode', e.target.value as Config['freezeClockMode'])
+                }
+              >
+                <option value="penalty">Pause + penalty</option>
+                <option value="running">Keep running</option>
+                <option value="paused">Pause only</option>
+                <option value="grace">Pause, then run</option>
+              </select>
+            </Field>
+            {config.freezeClockMode === 'penalty' ? (
+              <Field
+                label="Penalty seconds"
+                tip="Seconds deducted from your clock when a freeze is resolved."
+              >
+                <input
+                  type="number"
+                  value={config.freezePenaltySeconds}
+                  onChange={(e) => patch('freezePenaltySeconds', Number(e.target.value))}
+                />
+              </Field>
+            ) : null}
+            {config.freezeClockMode === 'grace' ? (
+              <Field
+                label="Grace seconds"
+                tip="How long the clock stays paused. After this, it runs if you are still frozen. A passing move during the pause ends the freeze immediately."
+              >
+                <input
+                  type="number"
+                  value={config.freezeGraceSeconds}
+                  onChange={(e) => patch('freezeGraceSeconds', Number(e.target.value))}
+                />
+              </Field>
+            ) : null}
+          </div>
         </div>
       </section>
 
