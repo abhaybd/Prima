@@ -1,58 +1,22 @@
 # Prima
 
-A browser chess trainer for **acceptable play under time pressure**, not engine-optimal accuracy.
+Prima is a chess trainer that runs in your browser. The name is short for *prima facie* — from first look — because the skill it trains is judging a position on sight: playing *acceptably* when the clock is running, not hunting for the engine-best move.
 
-*Prima* is short for *prima facie* — from first look. The aim is to train quick intuition: judging a move on sight, under a ticking clock.
+You play blitz against a human-like [Maia-3](https://github.com/CSSLab/maia3) bot. After each of your moves, the app checks whether a stronger human (the *expert*) would also play it, relative to their top choice. If that **optimality** is too low, the position **freezes**: the move is undone, a neutral overlay appears, and you try again.
 
-You play blitz against a human-like [Maia-3](https://github.com/CSSLab/maia3) bot. After each of your moves, the app checks whether a stronger human (the *expert*) would also play it, relative to their top choice. If that optimality is too low, the position **freezes**: the move is undone, a neutral overlay appears, and you try again. Freeze rate, retries, and how those numbers change as the clock runs down are the metrics that matter.
-
-The hypothesis: strong blitz is not finding best moves quickly. It is reliably avoiding unacceptable ones while the clock is ticking.
+The bet is that strong blitz is not finding best moves quickly, but keeping unacceptable ones off the board while time is running out. What the app tracks, then, is freeze rate, retries, and how those numbers change as the clock runs down. In-depth stats are logged as you play, and you can review them in the dashboard.
 
 ## Scope
 
-- Entirely client-side. No server, accounts, online rating, or cloud sync.
-- Single-player only.
-- Engines run in the browser (WebAssembly).
-- All state stays in this browser: settings in `localStorage`, games and move telemetry in IndexedDB. Clearing site data deletes them. Export/import JSON from Settings is the only backup.
+Prima runs entirely in your browser. There is no server, no account, and nothing synced to the cloud. You play on this machine, with the engines running locally as WebAssembly. Settings are saved in `localStorage`; games and move telemetry go into IndexedDB. If you clear site data, that history is gone — the only backup is exporting and importing JSON from Settings.
 
 ## How a freeze works
 
-After you move, the app scores **optimality** — would a stronger human (the *expert* rating, not the bot) also play this, relative to their top choice? Shown as a percent of the expert’s top-move probability.
+After you move, the app scores **optimality**: how readily a stronger human would play the same move, as a percent of their top-move probability. The rating used for that check is the expert rating, which is independent of the bot you are playing.
 
-A freeze does not tell you *why*. Real freezes and occasional **decoy** freezes look identical, so a freeze is not a free “this was a mistake” signal. Repeating the same move after a freeze is allowed; that is treated as confidence in the original choice. After several failed attempts the app reveals the expert’s top move as an arrow. You can play that move or any other; the ply is still recorded as a miss.
+A freeze does not tell you *why* the move failed. Real freezes and occasional **decoy** freezes look identical, so you cannot treat a freeze as a free “this was a mistake” signal. Repeating the same move is allowed; that is treated as confidence in the original choice. After several failed attempts, the app reveals the expert’s top move as an arrow. You can play that, or any other legal move; either way the turn is recorded as a miss.
 
-Moves that stay in the opening book, forced-only-move positions, and already-decided games are not evaluated. Leaving the book is evaluated.
-
-## Using the app
-
-| Route | What it is |
-|---|---|
-| `/` | Play: board, your clock, color, bot Elo, time control, freeze overlay |
-| `/settings` | Difficulty, freeze behavior, backup |
-| `/report/:gameId` | Post-game stats and move-by-move replay (optimality and attempts shown *after* the game) |
-| `/dashboard` | Cross-game stats. Primary chart: optimality versus remaining clock |
-| `/about` | Product intent, how freezes work, privacy, licenses |
-
-**Settings that are easy to mix up**
-
-- **Opponent Elo** (play page) is bot strength. Maia uses that rating for both sides when the bot moves.
-- **Expert Elo** is the bar *your* moves are scored against. Set it above the bot. It is not the bot’s rating.
-- **Min optimality** is the difficulty dial. Lower is more permissive.
-
-**Clock during a freeze**
-
-- Pause + penalty (default): clock stops, then a fixed penalty on resolution.
-- Keep running: closest to real blitz — sloppiness costs time.
-- Pause only: useful while you are still calibrating min optimality.
-- Pause, then run: clock stops for a few seconds (default 3), then runs if you are still frozen. A passing move during the pause ends the freeze immediately.
-
-## Metrics
-
-After a game: freeze counts, mean retries, misses, mean optimality, freeze rate on quiet vs forcing positions. The quiet-position rate is the interesting one.
-
-Across games, the **quality versus remaining clock** chart (mean optimality in time buckets) is the point of the tool: it measures degradation under time pressure.
-
-Decoy freezes are excluded from quality metrics. On the game report they are the yellow rows.
+Not every position is scored. The app skips evaluation while you are still in the opening book, when there is only one legal move, or when the game is already over. Once you leave the book, later moves are scored as usual.
 
 ## Run
 
@@ -62,11 +26,11 @@ npm test
 npm run dev
 ```
 
-On first **New game** the app downloads a Maia-3 ONNX model from Hugging Face (~46 MB for 23M fp16, or ~11 MB for 5M) and caches it in the browser. Default is 23M; 5M is the low-bandwidth option in Settings. The 79M model is not used — the accuracy gain over 23M is negligible for a client download.
+The first time you click **New game**, the app downloads a Maia-3 ONNX model from Hugging Face and caches it in the browser. That is about 46 MB for the default 23M fp16 model, or about 11 MB if you pick the 5M model in Settings as a low-bandwidth option. The 79M model is not used; the accuracy gain over 23M is not worth the extra download for a client app.
 
-Optional: put `maia3-23m.fp16.onnx` / `maia3-5m.fp16.onnx` in `public/models/` to skip Hugging Face. Files come from [bqrio/maia3-onnx](https://huggingface.co/bqrio/maia3-onnx).
+If you would rather skip Hugging Face, put `maia3-23m.fp16.onnx` or `maia3-5m.fp16.onnx` in `public/models/`. Those files come from [bqrio/maia3-onnx](https://huggingface.co/bqrio/maia3-onnx).
 
-Vite copies ONNX Runtime WASM into `public/ort/` when the dev server or production build starts.
+When the dev server or a production build starts, Vite copies ONNX Runtime WASM into `public/ort/`.
 
 ## License
 
