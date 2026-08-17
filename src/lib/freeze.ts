@@ -2,6 +2,8 @@ import type { Config } from '../types/config'
 import type { FreezeTrigger } from '../types/game'
 import { isExtremeExpected } from './wdl'
 
+export type SkipReason = 'opening' | 'forced' | 'terminal' | 'extreme-wdl'
+
 export interface SkipEvalInput {
   ply: number
   legalMoveCount: number
@@ -11,18 +13,22 @@ export interface SkipEvalInput {
   wdlClauseEnabled: boolean
 }
 
-export function shouldSkipEval(input: SkipEvalInput): boolean {
-  if (input.ply < input.openingSkipPlies) return true
-  if (input.legalMoveCount <= 1) return true
-  if (input.afterMoveTerminal) return true
+export function skipEvalReason(input: SkipEvalInput): SkipReason | null {
+  if (input.ply < input.openingSkipPlies) return 'opening'
+  if (input.legalMoveCount <= 1) return 'forced'
+  if (input.afterMoveTerminal) return 'terminal'
   if (
     input.wdlClauseEnabled &&
     input.preMoveExpected !== undefined &&
     isExtremeExpected(input.preMoveExpected)
   ) {
-    return true
+    return 'extreme-wdl'
   }
-  return false
+  return null
+}
+
+export function shouldSkipEval(input: SkipEvalInput): boolean {
+  return skipEvalReason(input) !== null
 }
 
 export function policyRatio(pMove: number, pTop: number): number {

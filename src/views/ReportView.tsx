@@ -67,6 +67,12 @@ export function ReportView() {
         <Stat label="Forcing freeze rate" value={pct(stats.forcingRate)} />
         <Stat label="Quiet freeze rate" value={pct(stats.quietRate)} />
       </div>
+      {game.pgn ? (
+        <div className="panel">
+          <h2>PGN</h2>
+          <pre className={styles.pgn}>{game.pgn}</pre>
+        </div>
+      ) : null}
       <div className={styles.split}>
         <div className="panel">
           <h2>Moves</h2>

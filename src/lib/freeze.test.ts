@@ -1,8 +1,48 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../types/config'
-import { combineChannels, maybeDecoy, policyRatio, shouldSkipEval } from './freeze'
+import { combineChannels, maybeDecoy, policyRatio, shouldSkipEval, skipEvalReason } from './freeze'
 
 describe('freeze criterion', () => {
+  it('names skip reasons', () => {
+    expect(
+      skipEvalReason({
+        ply: 4,
+        legalMoveCount: 20,
+        afterMoveTerminal: false,
+        openingSkipPlies: 12,
+        wdlClauseEnabled: false,
+      }),
+    ).toBe('opening')
+    expect(
+      skipEvalReason({
+        ply: 20,
+        legalMoveCount: 1,
+        afterMoveTerminal: false,
+        openingSkipPlies: 12,
+        wdlClauseEnabled: false,
+      }),
+    ).toBe('forced')
+    expect(
+      skipEvalReason({
+        ply: 20,
+        legalMoveCount: 20,
+        afterMoveTerminal: true,
+        openingSkipPlies: 12,
+        wdlClauseEnabled: false,
+      }),
+    ).toBe('terminal')
+    expect(
+      skipEvalReason({
+        ply: 20,
+        legalMoveCount: 20,
+        afterMoveTerminal: false,
+        openingSkipPlies: 12,
+        wdlClauseEnabled: true,
+        preMoveExpected: 0.99,
+      }),
+    ).toBe('extreme-wdl')
+  })
+
   it('skips opening plies, single replies, and terminals', () => {
     expect(
       shouldSkipEval({
