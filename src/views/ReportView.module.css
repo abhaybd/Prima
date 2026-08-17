@@ -4,6 +4,23 @@
   gap: 16px;
 }
 
+.notFound {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  min-height: calc(100dvh - 8rem);
+}
+
+.notFound h1,
+.notFound p {
+  margin: 0;
+}
+
+.notFound p {
+  margin-top: 8px;
+  color: #8b98a5;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

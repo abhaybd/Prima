@@ -11,14 +11,41 @@ export function ReportView() {
   const [game, setGame] = useState<GameRecord | undefined>()
   const [moves, setMoves] = useState<MoveRecord[]>([])
   const [selected, setSelected] = useState<MoveRecord | null>(null)
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'not-found'>('loading')
 
   useEffect(() => {
-    if (!gameId) return
-    void getGame(gameId).then(setGame)
-    void getMovesForGame(gameId).then((rows) => {
-      setMoves(rows)
-      setSelected(rows.find((m) => m.trigger !== 'none') ?? null)
-    })
+    if (!gameId) {
+      setLoadState('not-found')
+      return
+    }
+    let cancelled = false
+    setLoadState('loading')
+    setGame(undefined)
+    setMoves([])
+    setSelected(null)
+    void getGame(gameId)
+      .then((record) => {
+        if (cancelled) return
+        if (!record) {
+          setLoadState('not-found')
+          return
+        }
+        setGame(record)
+        setLoadState('ready')
+      })
+      .catch(() => {
+        if (!cancelled) setLoadState('not-found')
+      })
+    void getMovesForGame(gameId)
+      .then((rows) => {
+        if (cancelled) return
+        setMoves(rows)
+        setSelected(rows.find((m) => m.trigger !== 'none') ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
   }, [gameId])
 
   const evaluated = moves.filter((m) => m.evaluated && m.trigger !== 'decoy')
@@ -47,8 +74,17 @@ export function ReportView() {
     }
   }, [evaluated, freezes])
 
-  if (!gameId) return <p>Missing game.</p>
-  if (!game) return <p>Loading…</p>
+  if (loadState === 'not-found') {
+    return (
+      <div className={styles.notFound}>
+        <div>
+          <h1>404</h1>
+          <p>Game not found.</p>
+        </div>
+      </div>
+    )
+  }
+  if (loadState !== 'ready' || !game) return <p>Loading…</p>
 
   return (
     <div className={styles.page}>
