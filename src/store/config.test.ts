@@ -21,6 +21,8 @@ describe('config persistence', () => {
     Object.defineProperty(globalThis, 'localStorage', { value: ls, configurable: true })
     expect(loadConfig().tauRatio).toBe(DEFAULT_CONFIG.tauRatio)
     expect(loadConfig().opponentElo).toBe(1000)
+    expect(loadConfig().opponentSampleMode).toBe('nucleus')
+    expect(loadConfig().opponentTopP).toBe(0.9)
     expect(loadConfig().timeControl).toEqual({ initial: 180, increment: 0 })
   })
 
@@ -46,6 +48,31 @@ describe('config persistence', () => {
     )
     expect(loadConfig()).not.toHaveProperty('openingSkipPlies')
     expect(loadConfig().opponentElo).toBe(1800)
+  })
+
+  it('accepts opponent sampling mode and nucleus p', () => {
+    const merged = mergeConfig(DEFAULT_CONFIG, {
+      opponentSampleMode: 'argmax',
+      opponentTopP: 0.8,
+    })
+    expect(merged.opponentSampleMode).toBe('argmax')
+    expect(merged.opponentTopP).toBe(0.8)
+  })
+
+  it('defaults sampling when the stored config predates it', () => {
+    const merged = mergeConfig(DEFAULT_CONFIG, { opponentElo: 1800 } as Partial<typeof DEFAULT_CONFIG>)
+    expect(merged.opponentSampleMode).toBe('nucleus')
+    expect(merged.opponentTopP).toBe(0.9)
+  })
+
+  it('rejects an invalid sampling mode and clamps nucleus p', () => {
+    const merged = mergeConfig(DEFAULT_CONFIG, {
+      opponentSampleMode: 'greedy' as never,
+      opponentTopP: 1.4,
+    })
+    expect(merged.opponentSampleMode).toBe('nucleus')
+    expect(merged.opponentTopP).toBe(1)
+    expect(mergeConfig(DEFAULT_CONFIG, { opponentTopP: 0 }).opponentTopP).toBe(0.01)
   })
 
   it('accepts grace freeze clock mode', () => {
@@ -84,7 +111,7 @@ describe('config persistence', () => {
       JSON.stringify({ opponentElo: 1500, thresholdElo: 2000, timeControl: { initial: 180, increment: 0 } }),
     )
     expect(loadConfig().opponentElo).toBe(1000)
-    expect(loadConfig().configVersion).toBe(3)
+    expect(loadConfig().configVersion).toBe(4)
   })
 
   it('drops the old verdictGateMs setting', () => {
@@ -133,7 +160,7 @@ describe('config persistence', () => {
     expect(loadConfig()).not.toHaveProperty('wdlClauseEnabled')
     expect(loadConfig()).not.toHaveProperty('sfMovetimeMs')
     expect(loadConfig().opponentElo).toBe(1800)
-    expect(loadConfig().configVersion).toBe(3)
+    expect(loadConfig().configVersion).toBe(4)
   })
 
   it('clears stored config so load returns defaults', () => {

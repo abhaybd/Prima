@@ -1,5 +1,6 @@
 export type FreezeClockMode = 'penalty' | 'running' | 'paused' | 'grace'
 export type MaiaVariant = '23m' | '5m'
+export type OpponentSampleMode = 'nucleus' | 'argmax'
 export type UserColorPref = 'w' | 'b' | 'random'
 export type Color = 'w' | 'b'
 
@@ -21,10 +22,12 @@ export interface Config {
   timeControl: TimeControl
   userColor: UserColorPref
   maiaVariant: MaiaVariant
+  opponentSampleMode: OpponentSampleMode
+  opponentTopP: number
 }
 
 export const DEFAULT_CONFIG: Config = {
-  configVersion: 3,
+  configVersion: 4,
   opponentElo: 1000,
   thresholdElo: 2000,
   tauRatio: 0.15,
@@ -36,6 +39,8 @@ export const DEFAULT_CONFIG: Config = {
   timeControl: { initial: 180, increment: 0 },
   userColor: 'w',
   maiaVariant: '23m',
+  opponentSampleMode: 'nucleus',
+  opponentTopP: 0.9,
 }
 
 export const CONFIG_STORAGE_KEY = 'prima.config.v1'

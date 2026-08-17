@@ -4,6 +4,7 @@ import {
   type Config,
   type FreezeClockMode,
   type MaiaVariant,
+  type OpponentSampleMode,
   type UserColorPref,
 } from '../types/config'
 
@@ -17,6 +18,15 @@ function isUserColor(v: unknown): v is UserColorPref {
 
 function isMaiaVariant(v: unknown): v is MaiaVariant {
   return v === '23m' || v === '5m'
+}
+
+function isOpponentSampleMode(v: unknown): v is OpponentSampleMode {
+  return v === 'nucleus' || v === 'argmax'
+}
+
+function topP(v: unknown, fallback: number): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return fallback
+  return Math.min(1, Math.max(0.01, v))
 }
 
 function cloneDefault(): Config {
@@ -33,7 +43,7 @@ export function loadConfig(): Config {
       parsed.opponentElo = 1000
     }
     const merged = mergeConfig(DEFAULT_CONFIG, parsed)
-    if (version < 3) saveConfig(merged)
+    if (version < DEFAULT_CONFIG.configVersion) saveConfig(merged)
     return merged
   } catch {
     return cloneDefault()
@@ -68,6 +78,10 @@ export function mergeConfig(base: Config, patch: Partial<Config>): Config {
     timeControl,
     userColor: isUserColor(patch.userColor) ? patch.userColor : base.userColor,
     maiaVariant: isMaiaVariant(patch.maiaVariant) ? patch.maiaVariant : base.maiaVariant,
+    opponentSampleMode: isOpponentSampleMode(patch.opponentSampleMode)
+      ? patch.opponentSampleMode
+      : base.opponentSampleMode,
+    opponentTopP: topP(patch.opponentTopP, base.opponentTopP),
   }
 }
 

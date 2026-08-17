@@ -94,6 +94,53 @@ export function SettingsView() {
       <p className="hint">Stored in this browser only. Hover the ? for details.</p>
 
       <section className="panel">
+        <h2>Opponent</h2>
+        <div className={styles.grid}>
+          <Field
+            label="Maia model"
+            tip="Which Maia-3 network plays as the bot and as the expert scoring your moves. 23M is default; 5M downloads less."
+          >
+            <select
+              value={config.maiaVariant}
+              onChange={(e) => patch('maiaVariant', e.target.value as Config['maiaVariant'])}
+            >
+              <option value="23m">23M (default)</option>
+              <option value="5m">5M (low bandwidth)</option>
+            </select>
+          </Field>
+          <Field
+            label="Move sampling"
+            tip="How the bot chooses a move. Nucleus picks from a short list of likely human moves, so it still varies. Always the top move plays the same favorite every time."
+          >
+            <select
+              value={config.opponentSampleMode}
+              onChange={(e) =>
+                patch('opponentSampleMode', e.target.value as Config['opponentSampleMode'])
+              }
+            >
+              <option value="nucleus">Nucleus (top-p)</option>
+              <option value="argmax">Argmax (top move)</option>
+            </select>
+          </Field>
+          {config.opponentSampleMode === 'nucleus' ? (
+            <Field
+              label="Nucleus p"
+              tip="How long that short list is. 0.9 is the default and stays with normal human choices. Raise it toward 1.0 to allow rarer — and sometimes terrible — moves."
+            >
+              <input
+                type="number"
+                step="0.05"
+                min={0.05}
+                max={1}
+                value={config.opponentTopP}
+                onChange={(e) => patch('opponentTopP', Number(e.target.value))}
+              />
+            </Field>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="panel">
         <h2>Difficulty</h2>
         <div className={styles.grid}>
           <Field
@@ -118,18 +165,6 @@ export function SettingsView() {
               value={Number((config.tauRatio * 100).toFixed(1))}
               onChange={(e) => patch('tauRatio', Number(e.target.value) / 100)}
             />
-          </Field>
-          <Field
-            label="Maia model"
-            tip="Which Maia-3 network plays as the bot and as the expert scoring your moves. 23M is default; 5M downloads less."
-          >
-            <select
-              value={config.maiaVariant}
-              onChange={(e) => patch('maiaVariant', e.target.value as Config['maiaVariant'])}
-            >
-              <option value="23m">23M (default)</option>
-              <option value="5m">5M (low bandwidth)</option>
-            </select>
           </Field>
         </div>
       </section>
@@ -210,7 +245,7 @@ export function SettingsView() {
         <button
           type="button"
           className="secondary"
-          title="Restore difficulty and freeze defaults. Color, time control, and bot Elo on the play page are left as they are."
+          title="Restore opponent, difficulty, and freeze defaults. Color, time control, and bot Elo on the play page are left as they are."
           onClick={() => {
             setConfig({
               ...DEFAULT_CONFIG,

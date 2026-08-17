@@ -27,7 +27,7 @@ import {
 } from '../lib/clocks'
 import { commitAttempts, freezeVerdict, isRealFreezeTrigger, maybeDecoy, policyRatio, recordedTrigger, skipEvalReason } from '../lib/freeze'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
-import { moveProb, sampleMove, topMove } from '../lib/maia/decode'
+import { chooseOpponentMove, moveProb, topMove } from '../lib/maia/decode'
 import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type EvalComment } from '../lib/pgn'
 import { loadConfig } from '../store/config'
 import { putGame, putMove } from '../store/db'
@@ -262,7 +262,7 @@ export function useGame() {
       return
     }
     const { policy } = await maia.policy(chess.fen(), config.opponentElo, config.opponentElo)
-    const uci = sampleMove(policy)
+    const uci = chooseOpponentMove(policy, config.opponentSampleMode, config.opponentTopP)
     applyUci(chess, uci)
     queueSfEval(chess.history().length - 1, chess.fen(), false)
     clocksRef.current = applyIncrement(
