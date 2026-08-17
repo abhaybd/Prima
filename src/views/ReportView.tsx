@@ -5,7 +5,7 @@ import { getGame, getMovesForGame } from '../store/db'
 import { downloadText } from '../store/export'
 import { debugHref, useDebugMode } from '../lib/debug'
 import { pgnForDisplay } from '../lib/pgn'
-import { plyHadRealFreeze } from '../lib/freeze'
+import { plyHadRealFreeze, ratioForAttempt } from '../lib/freeze'
 import type { GameRecord, MoveRecord } from '../types/game'
 import { applyUci, newChess, uciToSan } from '../lib/chess'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
@@ -169,7 +169,7 @@ export function ReportView() {
       <div className={styles.split}>
         <div className="panel">
           <h2>Moves</h2>
-          <table className={styles.table}>
+          <table className={`${styles.table} ${styles.moves}`}>
             <thead>
               <tr>
                 <th>#</th>
@@ -207,13 +207,7 @@ export function ReportView() {
                     </span>
                   </td>
                   <td>
-                    {m.evaluated ? (
-                      <span className={styles.optimality}>
-                        <span className={styles.optimalityNum}>{(m.ratio * 100).toFixed(0)}</span>%
-                      </span>
-                    ) : (
-                      '—'
-                    )}
+                    <OptimalityCell value={m.evaluated ? m.ratio : null} />
                   </td>
                   <td>{m.retries}</td>
                 </tr>
@@ -234,23 +228,46 @@ export function ReportView() {
                   customLightSquareStyle={{ backgroundColor: '#e8eddf' }}
                 />
               </div>
-              <p>
-                Attempts: {sansFromUcis(selected.fen, selected.attempts) || '—'}
-                <br />
+              <div className={styles.replayMeta}>
                 {selected.sfBestMove ? (
-                  <>
-                    Engine best: {uciToSan(selected.fen, selected.sfBestMove)}
-                    <br />
-                  </>
+                  <p>
+                    Engine: {uciToSan(selected.fen, selected.sfBestMove)}
+                  </p>
                 ) : null}
-                Expert top move:{' '}
-                {selected.thresholdTopMove
-                  ? uciToSan(selected.fen, selected.thresholdTopMove)
-                  : '—'}
-                <br />
-                {selected.trigger === 'decoy' ? 'Decoy · ' : ''}
-                {selected.resolved}
-              </p>
+                <p>
+                  Expert:{' '}
+                  {selected.thresholdTopMove
+                    ? uciToSan(selected.fen, selected.thresholdTopMove)
+                    : '—'}
+                </p>
+                {selected.attempts.length > 0 ? (
+                  <table className={`${styles.table} ${styles.attemptsTable}`}>
+                    <caption>Attempts</caption>
+                    <thead>
+                      <tr>
+                        <th>Move</th>
+                        <th>Optimality</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selected.attempts.map((uci, i) => (
+                        <tr key={`${selected.ply}-${i}-${uci}`}>
+                          <td>{uciToSan(selected.fen, uci)}</td>
+                          <td>
+                            <OptimalityCell value={ratioForAttempt(selected, i)} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>Attempts: —</p>
+                )}
+                <p>
+                  {selected.trigger === 'decoy' ? 'Decoy · ' : ''}
+                  {selected.resolved}
+                </p>
+              </div>
             </>
           ) : (
             <p className="hint">Select a freeze to replay the position.</p>
@@ -278,8 +295,13 @@ function pct(v: number | null): string {
   return v === null ? '—' : `${(v * 100).toFixed(1)}%`
 }
 
-function sansFromUcis(fen: string, ucis: string[]): string {
-  return ucis.map((uci) => uciToSan(fen, uci)).join(', ')
+function OptimalityCell({ value }: { value: number | null }) {
+  if (value === null) return '—'
+  return (
+    <span className={styles.optimality}>
+      <span className={styles.optimalityNum}>{(value * 100).toFixed(0)}</span>%
+    </span>
+  )
 }
 
 function BookIcon() {
