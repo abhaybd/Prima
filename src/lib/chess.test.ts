@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyUci, isForcingMove, newChess, phaseOf, restoreFen } from './chess'
+import { applyUci, isForcingMove, newChess, phaseOf, restoreFen, uciToSan } from './chess'
 import { clockBucket } from './metrics'
 
 describe('phase and forcing flags', () => {
@@ -17,6 +17,25 @@ describe('phase and forcing flags', () => {
     expect(
       isForcingMove('rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', 'e4d5'),
     ).toBe(true)
+  })
+})
+
+describe('uciToSan', () => {
+  const start = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+
+  it('converts quiet moves and captures', () => {
+    expect(uciToSan(start, 'e2e4')).toBe('e4')
+    expect(
+      uciToSan('rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', 'e4d5'),
+    ).toBe('exd5')
+  })
+
+  it('converts promotions from the side to move', () => {
+    expect(uciToSan('8/P7/8/8/7k/8/8/4K3 w - - 0 1', 'a7a8q')).toBe('a8=Q')
+  })
+
+  it('returns the UCI string when the move is illegal', () => {
+    expect(uciToSan(start, 'e2e5')).toBe('e2e5')
   })
 })
 

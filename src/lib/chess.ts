@@ -27,6 +27,17 @@ export function applyUci(chess: Chess, uci: string): boolean {
   }
 }
 
+/** SAN for a UCI move from `fen` (position before the move). Falls back to UCI. */
+export function uciToSan(fen: string, uci: string): string {
+  if (!uci) return ''
+  try {
+    const move = new Chess(fen).move(parseUci(uci))
+    return move.san
+  } catch {
+    return uci
+  }
+}
+
 /** Undo the last move. Prefer this over `load(fen)` — load clears SAN history. */
 export function restoreFen(chess: Chess, fen: string): void {
   if (chess.fen() === fen) return
