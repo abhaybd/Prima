@@ -32,10 +32,10 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 **Two Maia conditionings** (same ONNX session, `elo_self` / `elo_oppo`):
 
-- Opponent (sample legal moves, never argmax): `elo_self = opponentElo`, `elo_oppo = userElo`
+- Opponent (sample legal moves, never argmax): `elo_self = opponentElo`, `elo_oppo = opponentElo`
 - Threshold (full distribution): `elo_self = thresholdElo`, `elo_oppo = opponentElo`
 
-`thresholdElo` and `opponentElo` stay independent in the UI.
+`thresholdElo` and `opponentElo` stay independent in the UI. There is no separate user Elo; the bot rating is used for both Maia opponent-policy inputs.
 
 **Channel A.** `ratio = P(m) / P(top)` after softmax over **legal** moves only. Ratio, not raw probability.
 

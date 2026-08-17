@@ -1,6 +1,6 @@
 .layout {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 300px;
+  grid-template-columns: minmax(280px, 1fr) 320px;
   gap: 24px;
   align-items: start;
 }
@@ -22,6 +22,12 @@
   max-width: 640px;
 }
 
+.frozenFrame {
+  outline: 2px solid #f0c14b;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 .side {
   display: flex;
   flex-direction: column;
@@ -30,7 +36,16 @@
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  align-items: end;
+}
+
+.gameSetup {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .meta {
@@ -42,4 +57,55 @@
 .meta progress,
 .side progress {
   width: 100%;
+}
+
+.dialog {
+  background: #151b23;
+  color: #e6edf3;
+  border: 1px solid #3d444d;
+  border-radius: 10px;
+  padding: 0;
+  max-width: 420px;
+  width: calc(100% - 32px);
+}
+
+.dialog::backdrop {
+  background: rgba(8, 10, 14, 0.65);
+}
+
+.dialogForm {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialogForm h2 {
+  margin: 0;
+}
+
+.dialogGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.dialogTime {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #212830;
+}
+
+.dialogTimeLabel {
+  font-size: 12px;
+  color: #8b98a5;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dialogActions {
+  display: flex;
+  gap: 8px;
 }

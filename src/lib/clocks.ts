@@ -1,4 +1,4 @@
-import type { Color } from '../types/config'
+import type { Color, FreezeClockMode } from '../types/config'
 
 export interface ClockState {
   w: number
@@ -48,6 +48,17 @@ export function deductMs(clocks: ClockState, color: Color, ms: number): { clocks
     return { clocks: next, flagged: color }
   }
   return { clocks: next, flagged: null }
+}
+
+/** Whether the user's clock should tick while the position is frozen. */
+export function freezeClockRunsDuringFreeze(
+  mode: FreezeClockMode,
+  now: number,
+  graceEndsAt: number | null,
+): boolean {
+  if (mode === 'running') return true
+  if (mode === 'grace') return graceEndsAt !== null && now >= graceEndsAt
+  return false
 }
 
 export function formatClock(ms: number): string {

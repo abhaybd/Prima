@@ -8,7 +8,7 @@ import {
 } from '../types/config'
 
 function isFreezeClockMode(v: unknown): v is FreezeClockMode {
-  return v === 'penalty' || v === 'running' || v === 'paused'
+  return v === 'penalty' || v === 'running' || v === 'paused' || v === 'grace'
 }
 
 function isUserColor(v: unknown): v is UserColorPref {
@@ -19,14 +19,24 @@ function isMaiaVariant(v: unknown): v is MaiaVariant {
   return v === '23m' || v === '5m'
 }
 
+function cloneDefault(): Config {
+  return { ...DEFAULT_CONFIG, timeControl: { ...DEFAULT_CONFIG.timeControl } }
+}
+
 export function loadConfig(): Config {
   try {
     const raw = localStorage.getItem(CONFIG_STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_CONFIG, timeControl: { ...DEFAULT_CONFIG.timeControl } }
+    if (!raw) return cloneDefault()
     const parsed = JSON.parse(raw) as Partial<Config>
-    return mergeConfig(DEFAULT_CONFIG, parsed)
+    const version = typeof parsed.configVersion === 'number' ? parsed.configVersion : 1
+    if (version < 2 && parsed.opponentElo === 1500) {
+      parsed.opponentElo = 1000
+    }
+    const merged = mergeConfig(DEFAULT_CONFIG, parsed)
+    if (version < 2) saveConfig(merged)
+    return merged
   } catch {
-    return { ...DEFAULT_CONFIG, timeControl: { ...DEFAULT_CONFIG.timeControl } }
+    return cloneDefault()
   }
 }
 
@@ -40,7 +50,7 @@ export function mergeConfig(base: Config, patch: Partial<Config>): Config {
     increment: patch.timeControl?.increment ?? base.timeControl.increment,
   }
   return {
-    userElo: num(patch.userElo, base.userElo),
+    configVersion: num(patch.configVersion, base.configVersion),
     opponentElo: num(patch.opponentElo, base.opponentElo),
     thresholdElo: num(patch.thresholdElo, base.thresholdElo),
     tauRatio: num(patch.tauRatio, base.tauRatio),
@@ -51,6 +61,7 @@ export function mergeConfig(base: Config, patch: Partial<Config>): Config {
       ? patch.freezeClockMode
       : base.freezeClockMode,
     freezePenaltySeconds: num(patch.freezePenaltySeconds, base.freezePenaltySeconds),
+    freezeGraceSeconds: num(patch.freezeGraceSeconds, base.freezeGraceSeconds),
     decoyFreezeRate: num(patch.decoyFreezeRate, base.decoyFreezeRate),
     verdictGateMs: num(patch.verdictGateMs, base.verdictGateMs),
     openingSkipPlies: num(patch.openingSkipPlies, base.openingSkipPlies),

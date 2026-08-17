@@ -8,46 +8,14 @@ interface Props {
   userColor: Color
 }
 
-function ClockFace({
-  label,
-  ms,
-  active,
-  user,
-}: {
-  label: string
-  ms: number
-  active: boolean
-  user: boolean
-}) {
+export function Clocks({ clocks, userColor }: Props) {
+  const ms = clocks[userColor]
+  const active = clocks.running === userColor
   const low = ms < 15000
   return (
     <div className={`${styles.clock} ${active ? styles.active : ''} ${low ? styles.low : ''}`}>
-      <div className={styles.label}>
-        {label}
-        {user ? ' · you' : ''}
-      </div>
+      <div className={styles.label}>Time</div>
       <div className={styles.time}>{formatClock(ms)}</div>
-    </div>
-  )
-}
-
-export function Clocks({ clocks, userColor }: Props) {
-  const top: Color = userColor === 'w' ? 'b' : 'w'
-  const bottom: Color = userColor
-  return (
-    <div className={styles.stack}>
-      <ClockFace
-        label={top === 'w' ? 'White' : 'Black'}
-        ms={clocks[top]}
-        active={clocks.running === top}
-        user={false}
-      />
-      <ClockFace
-        label={bottom === 'w' ? 'White' : 'Black'}
-        ms={clocks[bottom]}
-        active={clocks.running === bottom}
-        user
-      />
     </div>
   )
 }

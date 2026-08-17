@@ -1,4 +1,4 @@
-export type FreezeClockMode = 'penalty' | 'running' | 'paused'
+export type FreezeClockMode = 'penalty' | 'running' | 'paused' | 'grace'
 export type MaiaVariant = '23m' | '5m'
 export type UserColorPref = 'w' | 'b' | 'random'
 export type Color = 'w' | 'b'
@@ -9,7 +9,7 @@ export interface TimeControl {
 }
 
 export interface Config {
-  userElo: number
+  configVersion: number
   opponentElo: number
   thresholdElo: number
   tauRatio: number
@@ -18,6 +18,7 @@ export interface Config {
   maxRetries: number
   freezeClockMode: FreezeClockMode
   freezePenaltySeconds: number
+  freezeGraceSeconds: number
   decoyFreezeRate: number
   verdictGateMs: number
   openingSkipPlies: number
@@ -28,8 +29,8 @@ export interface Config {
 }
 
 export const DEFAULT_CONFIG: Config = {
-  userElo: 1500,
-  opponentElo: 1500,
+  configVersion: 2,
+  opponentElo: 1000,
   thresholdElo: 2000,
   tauRatio: 0.15,
   tauWdl: 0.12,
@@ -37,6 +38,7 @@ export const DEFAULT_CONFIG: Config = {
   maxRetries: 3,
   freezeClockMode: 'penalty',
   freezePenaltySeconds: 5,
+  freezeGraceSeconds: 3,
   decoyFreezeRate: 0.08,
   verdictGateMs: 250,
   openingSkipPlies: 12,

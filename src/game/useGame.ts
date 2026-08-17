@@ -18,17 +18,19 @@ import {
   applyIncrement,
   createClocks,
   deductMs,
+  freezeClockRunsDuringFreeze,
   pauseClocks,
   resumeClocks,
   tickClocks,
   type ClockState,
 } from '../lib/clocks'
-import { combineChannels, maybeDecoy, policyRatio, shouldSkipEval } from '../lib/freeze'
+import { combineChannels, maybeDecoy, policyRatio, skipEvalReason } from '../lib/freeze'
 import { moveProb, sampleMove, topMove } from '../lib/maia/decode'
+import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type EvalComment } from '../lib/pgn'
 import { isExtremeExpected, userPovExpected } from '../lib/wdl'
 import { loadConfig } from '../store/config'
 import { putGame, putMove } from '../store/db'
-import type { Color, Config } from '../types/config'
+import { DEFAULT_CONFIG, type Color, type Config, type TimeControl } from '../types/config'
 import type { FreezeTrigger, GameRecord, MoveRecord, MoveResolved } from '../types/game'
 
 export type PlayStatus =
@@ -69,6 +71,8 @@ export interface PlayState {
   status: PlayStatus
   fen: string
   userColor: Color
+  opponentElo: number
+  timeControl: TimeControl
   clocks: ClockState
   freezeCount: number
   freeze: FreezeView | null
@@ -83,7 +87,9 @@ const initialState = (): PlayState => ({
   status: 'idle',
   fen: new Chess().fen(),
   userColor: 'w',
-  clocks: createClocks(180, Date.now()),
+  opponentElo: DEFAULT_CONFIG.opponentElo,
+  timeControl: { ...DEFAULT_CONFIG.timeControl },
+  clocks: createClocks(DEFAULT_CONFIG.timeControl.initial, Date.now()),
   freezeCount: 0,
   freeze: null,
   sanMoves: [],
@@ -111,6 +117,8 @@ export function useGame() {
   const clocksRef = useRef<ClockState>(state.clocks)
   const moveStartRef = useRef<number>(Date.now())
   const evaluatingRef = useRef(false)
+  const evalCommentsRef = useRef<Map<number, string>>(new Map())
+  const freezeGraceEndsAtRef = useRef<number | null>(null)
 
   const setStatus = (status: PlayStatus) => {
     statusRef.current = status
@@ -131,15 +139,24 @@ export function useGame() {
     const chess = chessRef.current
     const result = resultFromBoard(chess, timedOut)
     clocksRef.current = { ...clocksRef.current, running: null }
+    freezeGraceEndsAtRef.current = null
     statusRef.current = 'gameover'
     const meta = gameMetaRef.current
     if (meta) {
+      const config = configRef.current
+      const pgn = pgnWithEvalComments(chess.history(), evalCommentsRef.current, {
+        Event: 'Blitz Freeze Drill',
+        White: meta.userColor === 'w' ? 'User' : `Maia ${config.opponentElo}`,
+        Black: meta.userColor === 'b' ? 'User' : `Maia ${config.opponentElo}`,
+        Result: result,
+      })
+      logGamePgn(pgn)
       const record: GameRecord = {
         gameId: meta.gameId,
         startedAt: meta.startedAt,
         endedAt: Date.now(),
-        config: configRef.current,
-        pgn: chess.pgn(),
+        config,
+        pgn,
         result,
         userColor: meta.userColor,
       }
@@ -176,7 +193,7 @@ export function useGame() {
       setState((s) => ({ ...s, error: 'Maia is not loaded', status: 'idle' }))
       return
     }
-    const { policy } = await maia.policy(chess.fen(), config.opponentElo, config.userElo)
+    const { policy } = await maia.policy(chess.fen(), config.opponentElo, config.opponentElo)
     const uci = sampleMove(policy)
     applyUci(chess, uci)
     clocksRef.current = applyIncrement(
@@ -210,6 +227,7 @@ export function useGame() {
         resolved: MoveResolved
         evaluated: boolean
         isForcing: boolean
+        evalComment?: EvalComment
       },
     ) => {
       const pending = pendingRef.current
@@ -227,6 +245,17 @@ export function useGame() {
         : [...pending.attempts, uci]
       const retries = Math.max(0, attempts.length - 1)
       const ply = pending.ply
+      if (extras.evalComment) {
+        const text = logEvalComment({
+          ...extras.evalComment,
+          ply,
+          uci,
+          attempts,
+          retries,
+          resolved: extras.resolved,
+        })
+        evalCommentsRef.current.set(ply, text)
+      }
       await recordMove({
         gameId: meta.gameId,
         ply,
@@ -255,11 +284,13 @@ export function useGame() {
         clocksRef.current = deducted.clocks
         if (deducted.flagged) {
           pendingRef.current = null
+          freezeGraceEndsAtRef.current = null
           await endGame(deducted.flagged)
           return
         }
       }
       pendingRef.current = null
+      freezeGraceEndsAtRef.current = null
       clocksRef.current = applyIncrement(
         clocksRef.current,
         meta.userColor,
@@ -284,7 +315,19 @@ export function useGame() {
       chessRef.current.load(pending.fenBefore)
       pending.didFreeze = true
       const now = Date.now()
-      if (config.freezeClockMode === 'running') {
+      if (
+        config.freezeClockMode === 'grace' &&
+        freezeGraceEndsAtRef.current === null
+      ) {
+        freezeGraceEndsAtRef.current = now + config.freezeGraceSeconds * 1000
+      }
+      if (
+        freezeClockRunsDuringFreeze(
+          config.freezeClockMode,
+          now,
+          freezeGraceEndsAtRef.current,
+        )
+      ) {
         clocksRef.current = resumeClocks(clocksRef.current, meta.userColor, now)
       } else {
         clocksRef.current = pauseClocks(clocksRef.current, now)
@@ -338,6 +381,19 @@ export function useGame() {
           resolved: 'accepted',
           evaluated: true,
           isForcing: isForcingMove(pendingExisting.fenBefore, uci),
+          evalComment: {
+            ply: pendingExisting.ply,
+            uci,
+            evaluated: true,
+            trigger: 'decoy',
+            freeze: false,
+            ratio: 1,
+            wdlDelta: 0,
+            thresholdTopMove: uci,
+            tauRatio: config.tauRatio,
+            tauWdl: config.tauWdl,
+            wdlClauseEnabled: config.wdlClauseEnabled,
+          },
         })
         return
       }
@@ -376,22 +432,38 @@ export function useGame() {
       const terminalAfter = isTerminal(after)
 
       try {
-        const cheapSkip = shouldSkipEval({
+        const skip = skipEvalReason({
           ply,
           legalMoveCount: legal.length,
           afterMoveTerminal: terminalAfter,
           openingSkipPlies: config.openingSkipPlies,
           wdlClauseEnabled: false,
         })
+        const tau = {
+          tauRatio: config.tauRatio,
+          tauWdl: config.tauWdl,
+          wdlClauseEnabled: config.wdlClauseEnabled,
+        }
 
         const opponentPromise = terminalAfter
           ? Promise.resolve(null)
-          : maia.policy(after.fen(), config.opponentElo, config.userElo)
+          : maia.policy(after.fen(), config.opponentElo, config.opponentElo)
         const gate = delay(config.verdictGateMs)
 
-        if (cheapSkip) {
+        if (skip) {
           await gate
           evaluatingRef.current = false
+          const skipped: EvalComment = {
+            ply,
+            uci,
+            evaluated: false,
+            skipReason: skip,
+            trigger: 'none',
+            freeze: false,
+            ratio: 0,
+            wdlDelta: 0,
+            ...tau,
+          }
           if (terminalAfter) {
             await acceptUserMove(uci, {
               ratio: 0,
@@ -402,6 +474,7 @@ export function useGame() {
               resolved: 'accepted',
               evaluated: false,
               isForcing: isForcingMove(fenBefore, uci),
+              evalComment: skipped,
             })
             return
           }
@@ -415,6 +488,7 @@ export function useGame() {
             resolved: 'accepted',
             evaluated: false,
             isForcing: isForcingMove(fenBefore, uci),
+            evalComment: skipped,
           })
           return
         }
@@ -450,7 +524,21 @@ export function useGame() {
             resolved: 'accepted',
             evaluated: false,
             isForcing: isForcingMove(fenBefore, beforeEval.bestMove),
-            })
+            evalComment: {
+              ply,
+              uci,
+              evaluated: false,
+              skipReason: 'extreme-wdl',
+              trigger: 'none',
+              freeze: false,
+              ratio: 0,
+              wdlDelta: 0,
+              eBest: preMoveExpected,
+              wdlStm: beforeEval.wdl,
+              sfBestMove: beforeEval.bestMove,
+              ...tau,
+            },
+          })
           return
         }
 
@@ -467,12 +555,16 @@ export function useGame() {
 
         const policy = threshold.policy
         const top = topMove(policy)
-        const ratio = policyRatio(moveProb(policy, uci), top?.p ?? 0)
+        const pMove = moveProb(policy, uci)
+        const pTop = top?.p ?? 0
+        const ratio = policyRatio(pMove, pTop)
+        let eBest: number | undefined
+        let eAfter: number | undefined
         let delta = 0
         if (beforeEval && afterSearch) {
-          const bestUser = userPovExpected(beforeEval.stmExpected, true)
-          const afterUser = userPovExpected(afterSearch.stmExpected, false)
-          delta = bestUser - afterUser
+          eBest = userPovExpected(beforeEval.stmExpected, true)
+          eAfter = userPovExpected(afterSearch.stmExpected, false)
+          delta = eBest - eAfter
         }
 
         const channel = combineChannels(ratio, delta, config)
@@ -484,6 +576,25 @@ export function useGame() {
           maybeDecoy(true, config.decoyFreezeRate)
 
         evaluatingRef.current = false
+
+        const evalComment: EvalComment = {
+          ply,
+          uci,
+          evaluated: true,
+          pMove,
+          pTop,
+          ratio,
+          eBest,
+          eAfter,
+          wdlDelta: delta,
+          wdlStm: beforeEval?.wdl,
+          wdlAfterStm: afterSearch?.wdl,
+          trigger: decoy && !channel.freeze ? 'decoy' : channel.trigger,
+          freeze: channel.freeze || decoy,
+          sfBestMove: beforeEval?.bestMove ?? '',
+          thresholdTopMove: top?.uci ?? '',
+          ...tau,
+        }
 
         if (channel.freeze || decoy) {
           const fails = (pending?.attempts.length ?? 1)
@@ -509,6 +620,7 @@ export function useGame() {
               resolved: 'revealed',
               evaluated: true,
               isForcing: isForcingMove(fenBefore, beforeEval?.bestMove ?? best),
+              evalComment: { ...evalComment, uci: best, freeze: true, trigger: channel.trigger },
             })
             return
           }
@@ -516,6 +628,11 @@ export function useGame() {
             pending.decoyActive = decoy && !channel.freeze
             if (decoy && !channel.freeze) pending.originalMove = pending.originalMove ?? uci
           }
+          logEvalComment({
+            ...evalComment,
+            attempts: pending?.attempts,
+            retries: Math.max(0, (pending?.attempts.length ?? 1) - 1),
+          })
           enterFreeze(decoy && !channel.freeze)
           return
         }
@@ -529,6 +646,7 @@ export function useGame() {
           resolved: 'accepted',
           evaluated: true,
           isForcing: isForcingMove(fenBefore, beforeEval?.bestMove ?? uci),
+          evalComment: { ...evalComment, freeze: false, trigger: 'none' },
         })
       } catch (err) {
         evaluatingRef.current = false
@@ -548,11 +666,15 @@ export function useGame() {
   const startGame = useCallback(async () => {
     const config = loadConfig()
     configRef.current = config
-    setState(() => ({
+    setState((s) => ({
       ...initialState(),
       status: 'loading',
       loadProgress: { loaded: 0, total: 1, label: 'Loading Maia-3…' },
       error: null,
+      userColor: s.userColor,
+      opponentElo: s.opponentElo,
+      timeControl: s.timeControl,
+      gameId: s.gameId,
     }))
     statusRef.current = 'loading'
     try {
@@ -585,12 +707,20 @@ export function useGame() {
       const gameId = newGameId()
       gameMetaRef.current = { gameId, startedAt: Date.now(), userColor }
       pendingRef.current = null
+      evalCommentsRef.current = new Map()
+      freezeGraceEndsAtRef.current = null
       clocksRef.current = createClocks(config.timeControl.initial, Date.now())
       moveStartRef.current = Date.now()
+      console.info(
+        EVAL_LOG_PREFIX,
+        `game ${gameId} user=${userColor} tauR=${config.tauRatio} tauW=${config.tauWdl} wdlOn=${config.wdlClauseEnabled ? 'yes' : 'no'} skipPlies=${config.openingSkipPlies} thresholdElo=${config.thresholdElo} opponentElo=${config.opponentElo}`,
+      )
       setState({
         status: 'playing',
         fen: chess.fen(),
         userColor,
+        opponentElo: config.opponentElo,
+        timeControl: { ...config.timeControl },
         clocks: clocksRef.current,
         freezeCount: 0,
         freeze: null,
@@ -641,8 +771,20 @@ export function useGame() {
     const id = window.setInterval(() => {
       if (statusRef.current !== 'playing' && statusRef.current !== 'frozen') return
       const config = configRef.current
-      if (statusRef.current === 'frozen' && config.freezeClockMode !== 'running') return
-      const { clocks, flagged } = tickClocks(clocksRef.current, Date.now())
+      const now = Date.now()
+      if (statusRef.current === 'frozen') {
+        const shouldRun = freezeClockRunsDuringFreeze(
+          config.freezeClockMode,
+          now,
+          freezeGraceEndsAtRef.current,
+        )
+        if (!shouldRun) return
+        const meta = gameMetaRef.current
+        if (meta && !clocksRef.current.running) {
+          clocksRef.current = resumeClocks(clocksRef.current, meta.userColor, now)
+        }
+      }
+      const { clocks, flagged } = tickClocks(clocksRef.current, now)
       clocksRef.current = clocks
       setState((s) => ({ ...s, clocks }))
       if (flagged) void endGame(flagged)

@@ -28,15 +28,15 @@ Opening moves, forced-only-move positions, and already-decided games are not eva
 
 | Route | What it is |
 |---|---|
-| `/` | Play: board, clocks, freeze overlay, freeze counter |
-| `/settings` | Opponent, difficulty, freeze behavior, time control, backup |
+| `/` | Play: board, your clock, color, bot Elo, time control, freeze overlay |
+| `/settings` | Difficulty, freeze behavior, backup |
 | `/report/:gameId` | Post-game stats and move-by-move replay (channels and attempts shown *after* the game) |
 | `/dashboard` | Cross-game stats. Primary chart: quality versus remaining clock. Headline: unique-WDL fire rate |
 
 **Settings that are easy to mix up**
 
-- **Opponent Elo** is bot strength.
-- **Threshold Elo** is the bar *your* moves are scored against. Set it above your Elo. It is not the bot’s rating.
+- **Opponent Elo** (play page) is bot strength. Maia uses that rating for both sides when the bot moves.
+- **Threshold Elo** is the bar *your* moves are scored against. Set it above the bot. It is not the bot’s rating.
 - **Policy ratio τ** is the difficulty dial. Lower is more permissive. The WDL threshold is a loose backstop; tightening it turns the drill into an engine-accuracy trainer, which is not the goal.
 
 **Clock during a freeze**
@@ -44,6 +44,7 @@ Opening moves, forced-only-move positions, and already-decided games are not eva
 - Pause + penalty (default): clock stops, then a fixed penalty on resolution.
 - Keep running: closest to real blitz — sloppiness costs time.
 - Pause only: useful while you are still calibrating τ.
+- Pause, then run: clock stops for a few seconds (default 3), then runs if you are still frozen. A passing move during the pause ends the freeze immediately.
 
 ## Metrics
 

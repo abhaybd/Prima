@@ -20,6 +20,7 @@ describe('config persistence', () => {
     }
     Object.defineProperty(globalThis, 'localStorage', { value: ls, configurable: true })
     expect(loadConfig().tauRatio).toBe(DEFAULT_CONFIG.tauRatio)
+    expect(loadConfig().opponentElo).toBe(1000)
     expect(loadConfig().timeControl).toEqual({ initial: 180, increment: 0 })
   })
 
@@ -27,6 +28,12 @@ describe('config persistence', () => {
     const merged = mergeConfig(DEFAULT_CONFIG, { tauRatio: 0.4 } as Partial<typeof DEFAULT_CONFIG>)
     expect(merged.tauRatio).toBe(0.4)
     expect(merged.thresholdElo).toBe(2000)
+  })
+
+  it('accepts grace freeze clock mode', () => {
+    const merged = mergeConfig(DEFAULT_CONFIG, { freezeClockMode: 'grace', freezeGraceSeconds: 3 })
+    expect(merged.freezeClockMode).toBe('grace')
+    expect(merged.freezeGraceSeconds).toBe(3)
   })
 
   it('round-trips through save/load', () => {
@@ -39,8 +46,26 @@ describe('config persistence', () => {
       },
       configurable: true,
     })
-    saveConfig({ ...DEFAULT_CONFIG, userElo: 1800, timeControl: { initial: 60, increment: 1 } })
-    expect(loadConfig().userElo).toBe(1800)
+    saveConfig({ ...DEFAULT_CONFIG, opponentElo: 1800, timeControl: { initial: 60, increment: 1 } })
+    expect(loadConfig().opponentElo).toBe(1800)
     expect(loadConfig().timeControl.increment).toBe(1)
+  })
+
+  it('migrates the old 1500 opponent Elo default to 1000', () => {
+    const memory = new Map<string, string>()
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: {
+        getItem: (k: string) => memory.get(k) ?? null,
+        setItem: (k: string, v: string) => memory.set(k, v),
+        removeItem: (k: string) => memory.delete(k),
+      },
+      configurable: true,
+    })
+    memory.set(
+      CONFIG_STORAGE_KEY,
+      JSON.stringify({ opponentElo: 1500, thresholdElo: 2000, timeControl: { initial: 180, increment: 0 } }),
+    )
+    expect(loadConfig().opponentElo).toBe(1000)
+    expect(loadConfig().configVersion).toBe(2)
   })
 })
