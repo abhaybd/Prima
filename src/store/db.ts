@@ -1,7 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { GameRecord, MoveRecord } from '../types/game'
 
-interface BlitzDB extends DBSchema {
+interface PrimaDB extends DBSchema {
   games: {
     key: string
     value: GameRecord
@@ -13,14 +13,14 @@ interface BlitzDB extends DBSchema {
   }
 }
 
-const DB_NAME = 'blitzdrill'
+const DB_NAME = 'prima'
 const DB_VERSION = 1
 
-let dbPromise: Promise<IDBPDatabase<BlitzDB>> | null = null
+let dbPromise: Promise<IDBPDatabase<PrimaDB>> | null = null
 
-export function getDb(): Promise<IDBPDatabase<BlitzDB>> {
+export function getDb(): Promise<IDBPDatabase<PrimaDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<BlitzDB>(DB_NAME, DB_VERSION, {
+    dbPromise = openDB<PrimaDB>(DB_NAME, DB_VERSION, {
       upgrade(db) {
         db.createObjectStore('games', { keyPath: 'gameId' })
         const moves = db.createObjectStore('moves', { keyPath: ['gameId', 'ply'] })

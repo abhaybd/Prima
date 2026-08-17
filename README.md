@@ -1,6 +1,8 @@
-# Blitz Freeze Drill
+# Prima
 
 A browser chess trainer for **acceptable play under time pressure**, not engine-optimal accuracy.
+
+*Prima* is short for *prima facie* — from first look. The aim is to train quick intuition: judging a move on sight, under a ticking clock.
 
 You play blitz against a human-like [Maia-3](https://github.com/CSSLab/maia3) bot. After each of your moves, the app checks whether a stronger human (the *expert*) would also play it, relative to their top choice. If that optimality is too low, the position **freezes**: the move is undone, a neutral overlay appears, and you try again. Freeze rate, retries, and how those numbers change as the clock runs down are the metrics that matter.
 
@@ -72,7 +74,7 @@ Vite copies ONNX Runtime WASM into `public/ort/` when the dev server or producti
 
 If this is hosted, AGPL §13 is satisfied by linking this repository (also in the in-app footer):
 
-- App: https://github.com/abhaybd/BlitzBrain
+- App: https://github.com/abhaybd/Prima
 - Stockfish (GPL-3.0): https://github.com/official-stockfish/Stockfish — wasm build [nmrugg/stockfish.js](https://github.com/nmrugg/stockfish.js)
 - Opening book: [official-stockfish/books](https://github.com/official-stockfish/books) `8moves_v3` (first 6 moves)
 - Maia-3 (AGPL-3.0): https://github.com/CSSLab/maia3

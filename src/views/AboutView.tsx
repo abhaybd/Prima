@@ -5,8 +5,8 @@ export function AboutView() {
     <div className={styles.page}>
       <h1>About</h1>
       <p className="hint">
-        A browser chess trainer for acceptable play under time pressure, not engine-optimal
-        accuracy.
+        Prima is a browser chess trainer for acceptable play under time pressure, not
+        engine-optimal accuracy. The name is short for <em>prima facie</em> — from first look.
       </p>
 
       <section className="panel">
@@ -58,12 +58,12 @@ export function AboutView() {
       <section className="panel">
         <h2>Source and licenses</h2>
         <p>
-          Blitz Freeze Drill is free software under the{' '}
-          <a href="https://github.com/abhaybd/BlitzBrain/blob/main/LICENSE">
+          Prima is free software under the{' '}
+          <a href="https://github.com/abhaybd/Prima/blob/main/LICENSE">
             GNU Affero General Public License v3
           </a>
           . Source is on GitHub:{' '}
-          <a href="https://github.com/abhaybd/BlitzBrain">abhaybd/BlitzBrain</a>.
+          <a href="https://github.com/abhaybd/Prima">abhaybd/Prima</a>.
         </p>
         <ul>
           <li>

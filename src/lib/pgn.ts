@@ -3,7 +3,7 @@ import type { FreezeTrigger, MoveResolved } from '../types/game'
 import type { SkipReason } from './freeze'
 import type { Wdl } from './wdl'
 
-export const EVAL_LOG_PREFIX = '[blitzdrill]'
+export const EVAL_LOG_PREFIX = '[prima]'
 
 export interface EvalComment {
   ply: number

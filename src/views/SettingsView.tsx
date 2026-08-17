@@ -60,7 +60,7 @@ export function SettingsView() {
 
   async function onExport() {
     const json = await exportDatabase()
-    downloadText(`blitzdrill-${new Date().toISOString().slice(0, 10)}.json`, json)
+    downloadText(`prima-${new Date().toISOString().slice(0, 10)}.json`, json)
   }
 
   async function onImport(file: File) {

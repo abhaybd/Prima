@@ -26,7 +26,7 @@ export function WelcomeDialog() {
   return (
     <dialog ref={dialogRef} className={styles.dialog} onClose={markWelcomeSeen}>
       <div className={styles.body}>
-        <h2>Welcome</h2>
+        <h2>Welcome to Prima</h2>
         <p>
           A blitz trainer for acceptable play under time pressure, not engine-perfect moves. After
           you move, the position may freeze if a stronger player would rarely choose it — undo and

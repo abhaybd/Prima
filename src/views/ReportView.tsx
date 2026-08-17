@@ -180,7 +180,7 @@ export function ReportView() {
                 className="secondary"
                 onClick={() =>
                   downloadText(
-                    `blitzdrill-${game.gameId}.pgn`,
+                    `prima-${game.gameId}.pgn`,
                     pgn,
                     'application/x-chess-pgn',
                   )

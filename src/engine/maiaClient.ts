@@ -21,7 +21,7 @@ const MODEL_FILES: Record<MaiaVariant, string> = {
   '5m': 'maia3-5m.fp16.onnx',
 }
 
-const CACHE_NAME = 'blitzdrill-models'
+const CACHE_NAME = 'prima-models'
 
 function modelUrls(variant: MaiaVariant): string[] {
   const file = MODEL_FILES[variant]

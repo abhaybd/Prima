@@ -1,6 +1,6 @@
 import { CONFIG_STORAGE_KEY } from '../types/config'
 
-export const WELCOME_STORAGE_KEY = 'blitzdrill.welcome.v1'
+export const WELCOME_STORAGE_KEY = 'prima.welcome.v1'
 
 export function hasSeenWelcome(): boolean {
   try {

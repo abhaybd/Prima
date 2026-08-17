@@ -221,7 +221,7 @@ export function useGame() {
     if (!meta) return
     const config = configRef.current
     const pgn = pgnWithEvalComments(chess.history(), evalCommentsRef.current, {
-      Event: 'Blitz Freeze Drill',
+      Event: 'Prima',
       White: meta.userColor === 'w' ? 'User' : `Maia ${config.opponentElo}`,
       Black: meta.userColor === 'b' ? 'User' : `Maia ${config.opponentElo}`,
       Result: result,

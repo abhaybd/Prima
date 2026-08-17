@@ -11,7 +11,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <div className={styles.shell}>
       <header className={styles.header}>
         <NavLink to={debugHref('/', debug)} className={styles.brand}>
-          Blitz Freeze Drill
+          Prima
           {debug ? <span className={styles.debugBadge}>DEBUG</span> : null}
         </NavLink>
         <nav className={styles.nav}>

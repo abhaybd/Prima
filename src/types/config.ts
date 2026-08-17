@@ -38,4 +38,4 @@ export const DEFAULT_CONFIG: Config = {
   maiaVariant: '23m',
 }
 
-export const CONFIG_STORAGE_KEY = 'blitzdrill.config.v1'
+export const CONFIG_STORAGE_KEY = 'prima.config.v1'

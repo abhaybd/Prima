@@ -54,8 +54,8 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 ## Persistence
 
-- Config: `localStorage` key `blitzdrill.config.v1`. Defaults in `src/types/config.ts`.
-- IndexedDB `blitzdrill`: `games` keyed by `gameId`; `moves` keyed by `[gameId, ply]`, index `gameId`. `GameRecord.sfEvals` is the full ply timeline; `MoveRecord.sfEval` / `sfMate` is the eval after that user move.
+- Config: `localStorage` key `prima.config.v1`. Defaults in `src/types/config.ts`.
+- IndexedDB `prima`: `games` keyed by `gameId`; `moves` keyed by `[gameId, ply]`, index `gameId`. `GameRecord.sfEvals` is the full ply timeline; `MoveRecord.sfEval` / `sfMate` is the eval after that user move.
 - `isForcing` and `phase` are written at insert time. Phase: opening if `ply < 24`; endgame if non-pawn non-king pieces ≤ 6; else middlegame. `isForcing` if the user’s move is capture, check, or promotion.
 - JSON export/import covers config + both stores.
 

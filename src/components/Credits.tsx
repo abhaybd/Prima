@@ -2,7 +2,7 @@ export function Credits() {
   return (
     <p className="credits">
       Source:{' '}
-      <a href="https://github.com/abhaybd/BlitzBrain">BlitzBrain</a>
+      <a href="https://github.com/abhaybd/Prima">Prima</a>
       {' · '}
       <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a> (GPL-3.0)
       {' · '}
