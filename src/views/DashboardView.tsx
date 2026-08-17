@@ -86,18 +86,56 @@ export function DashboardView() {
 
       <section className="panel">
         <h2>Quality versus remaining clock</h2>
-        <p className="hint">Mean WDL drop and policy ratio by time left. Decoys excluded.</p>
+        <p className="hint">
+          Mean WDL drop (↓ better) and move probability ratio (↑ better) by time left. Decoys
+          excluded.
+        </p>
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={clockChart}>
+            <LineChart data={clockChart} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
               <CartesianGrid stroke="#212830" />
               <XAxis dataKey="bucket" stroke="#8b98a5" />
-              <YAxis yAxisId="left" stroke="#e5534b" />
-              <YAxis yAxisId="right" orientation="right" stroke="#79b8ff" />
-              <Tooltip />
+              <YAxis
+                yAxisId="left"
+                stroke="#e5534b"
+                width={56}
+                label={{
+                  value: 'WDL Δ ↓',
+                  angle: -90,
+                  position: 'insideLeft',
+                  style: { fill: '#e5534b', fontSize: 12 },
+                }}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#79b8ff"
+                width={72}
+                label={{
+                  value: 'move probability ratio ↑',
+                  angle: 90,
+                  position: 'insideRight',
+                  style: { fill: '#79b8ff', fontSize: 12 },
+                }}
+              />
+              <Tooltip formatter={formatChartTooltip} />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="wdlDelta" name="mean WDL Δ" stroke="#e5534b" connectNulls />
-              <Line yAxisId="right" type="monotone" dataKey="ratio" name="mean ratio" stroke="#79b8ff" connectNulls />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="wdlDelta"
+                name="mean WDL Δ (↓)"
+                stroke="#e5534b"
+                connectNulls
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="ratio"
+                name="move probability ratio (↑)"
+                stroke="#79b8ff"
+                connectNulls
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -133,7 +171,7 @@ export function DashboardView() {
           {games.map((g) => (
             <li key={g.gameId}>
               <Link to={debugHref(`/report/${g.gameId}`, debug)}>
-                {new Date(g.startedAt).toLocaleString()} · {g.result}
+                {new Date(g.startedAt).toLocaleString()} · {g.result} · vs {g.config.opponentElo} Elo
               </Link>
             </li>
           ))}
@@ -141,4 +179,15 @@ export function DashboardView() {
       </section>
     </div>
   )
+}
+
+function formatChartTooltip(
+  value: unknown,
+  name: string,
+  item: { dataKey?: string | number },
+): [string, string] {
+  if (typeof value !== 'number') return ['—', name]
+  if (item.dataKey === 'wdlDelta') return [value.toFixed(4), name]
+  if (item.dataKey === 'ratio') return [value.toFixed(3), name]
+  return [String(value), name]
 }
