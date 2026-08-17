@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isForcingMove, phaseOf } from './chess'
+import { applyUci, isForcingMove, newChess, phaseOf, restoreFen } from './chess'
 import { clockBucket } from './metrics'
 
 describe('phase and forcing flags', () => {
@@ -17,6 +17,19 @@ describe('phase and forcing flags', () => {
     expect(
       isForcingMove('rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', 'e4d5'),
     ).toBe(true)
+  })
+})
+
+describe('restoreFen', () => {
+  it('undoes without dropping earlier SAN history', () => {
+    const chess = newChess()
+    applyUci(chess, 'e2e4')
+    applyUci(chess, 'e7e5')
+    const fenBefore = chess.fen()
+    applyUci(chess, 'g1f3')
+    restoreFen(chess, fenBefore)
+    expect(chess.fen()).toBe(fenBefore)
+    expect(chess.history()).toEqual(['e4', 'e5'])
   })
 })
 

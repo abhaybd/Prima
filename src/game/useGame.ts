@@ -11,6 +11,7 @@ import {
   newGameId,
   phaseOf,
   resolveUserColor,
+  restoreFen,
   resultFromBoard,
   toUci,
 } from '../lib/chess'
@@ -318,7 +319,7 @@ export function useGame() {
       const meta = gameMetaRef.current
       const pending = pendingRef.current
       if (!meta || !pending) return
-      chessRef.current.load(pending.fenBefore)
+      restoreFen(chessRef.current, pending.fenBefore)
       pending.didFreeze = true
       const now = Date.now()
       if (
@@ -605,7 +606,7 @@ export function useGame() {
           const fails = (pending?.attempts.length ?? 1)
           if (channel.freeze && fails >= config.maxRetries) {
             const best = beforeEval?.bestMove || top?.uci || uci
-            chess.load(fenBefore)
+            restoreFen(chess, fenBefore)
             applyUci(chess, best)
             setState((s) => ({
               ...s,
@@ -655,12 +656,13 @@ export function useGame() {
         })
       } catch (err) {
         evaluatingRef.current = false
-        chess.load(fenBefore)
+        restoreFen(chess, fenBefore)
         setState((s) => ({
           ...s,
           error: err instanceof Error ? err.message : String(err),
           status: 'playing',
           fen: chess.fen(),
+          sanMoves: chess.history(),
         }))
         clocksRef.current = resumeClocks(clocksRef.current, meta.userColor, Date.now())
       }

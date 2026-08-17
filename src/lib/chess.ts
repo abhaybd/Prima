@@ -27,6 +27,13 @@ export function applyUci(chess: Chess, uci: string): boolean {
   }
 }
 
+/** Undo the last move. Prefer this over `load(fen)` — load clears SAN history. */
+export function restoreFen(chess: Chess, fen: string): void {
+  if (chess.fen() === fen) return
+  if (chess.undo() && chess.fen() === fen) return
+  chess.load(fen)
+}
+
 export function legalUcis(chess: Chess): string[] {
   return chess.moves({ verbose: true }).map((m) => {
     const promo = m.promotion ?? ''
