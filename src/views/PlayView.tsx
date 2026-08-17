@@ -117,7 +117,7 @@ export function PlayView() {
     <div className={styles.layout}>
       <div className={styles.boardCol}>
         <div className={styles.boardFrame}>
-          <div className={boardOutlineClass(state)}>
+          <div className={`${styles.boardBox} ${boardOutlineClass(state)}`}>
             <Board
               fen={state.fen}
               orientation={state.userColor === 'w' ? 'white' : 'black'}

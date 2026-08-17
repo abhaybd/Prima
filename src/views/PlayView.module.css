@@ -1,25 +1,41 @@
 .layout {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 24px;
   align-items: start;
+  min-width: 0;
 }
 
 @media (max-width: 860px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
 }
 
 .boardCol {
   display: flex;
   justify-content: center;
+  min-width: 0;
+  width: 100%;
 }
 
 .boardFrame {
   position: relative;
-  width: min(72vh, 100%);
-  max-width: 640px;
+  width: 100%;
+  max-width: min(72vh, 640px);
+  min-width: 0;
+  padding: 6px;
+}
+
+@media (max-width: 860px) {
+  .boardFrame {
+    max-width: min(100%, 72vh, calc(100dvh - 12rem));
+  }
+}
+
+.boardBox {
+  min-width: 0;
 }
 
 .frozenFrame,
@@ -51,6 +67,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
 }
 
 .toolbar {
@@ -86,6 +103,8 @@
   padding: 0;
   max-width: 420px;
   width: calc(100% - 32px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
 }
 
 .dialog::backdrop {
@@ -127,4 +146,22 @@
 .dialogActions {
   display: flex;
   gap: 8px;
+}
+
+@media (max-width: 860px) {
+  .side {
+    gap: 12px;
+  }
+
+  .gameSetup {
+    font-size: 14px;
+  }
+
+  .dialogForm {
+    padding: 16px;
+  }
+
+  .dialogGrid {
+    grid-template-columns: 1fr;
+  }
 }

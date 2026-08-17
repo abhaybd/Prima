@@ -1,5 +1,6 @@
 .shell {
   min-height: 100vh;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -8,6 +9,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   padding: 12px 24px;
   border-bottom: 1px solid #212830;
   background: #0e1116;
@@ -51,9 +54,23 @@
 
 .main {
   flex: 1;
+  min-width: 0;
   padding: 20px 24px 32px;
 }
 
 .footer {
   padding: 12px 24px 20px;
+}
+
+@media (max-width: 640px) {
+  .header,
+  .main,
+  .footer {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .nav {
+    gap: 12px;
+  }
 }

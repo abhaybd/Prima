@@ -1,4 +1,7 @@
 .wrap {
-  width: min(72vh, 100%);
-  max-width: 640px;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  touch-action: manipulation;
 }
