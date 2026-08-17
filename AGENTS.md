@@ -29,9 +29,9 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 **Stockfish eval.** After a ply is committed (accepted user move or opponent move), queue a short Stockfish search. Do not await it for freeze/verdict/clocks. Store White-POV **pawns** (`cp / 100`); if SF reports mate, also store mate-in-N (positive = White mates). Frozen attempts that are undone are not evaluated. Report: eval timeline (ply on x, pawns on y) and an Eval column on the moves table. Older games without evals omit the graph.
 
-**Decoys.** With probability `decoyFreezeRate`, freeze a move that passed optimality. Log `trigger: 'decoy'`; exclude from quality metrics. Repeating the **same** move is accepted (confidence) — do not roll another decoy on that retry. A different move is re-evaluated normally. If that later move passes without a real freeze, the ply still logs `decoy` so the report can show both tries. Always wait `verdictGateMs` before showing the verdict (including same-move decoy accepts). Report move rows: real freezes stay highlighted as today; decoys use the same yellow (`#f0c14b`) as elsewhere. Do not show a trigger column.
+**Decoys.** With probability `decoyFreezeRate`, freeze a move that passed optimality. Log `trigger: 'decoy'`; exclude from quality metrics. Repeating the **same** move is accepted (confidence) — do not roll another decoy on that retry. A different move is re-evaluated normally. If that later move passes without a real freeze, the ply still logs `decoy` so the report can show both tries. Report move rows: real freezes stay highlighted as today; decoys use the same yellow (`#f0c14b`) as elsewhere. Do not show a trigger column.
 
-**Game loop.** On user move `m` in `p`: start verdict, opponent sample, and the gate together. Freeze → undo `m`, discard the opponent move. Pass → apply opponent move.
+**Game loop.** On user move `m` in `p`: start verdict and opponent sample together. Freeze → undo `m`, discard the opponent move. Pass → apply opponent move.
 
 **Two Maia conditionings** (same ONNX session, `elo_self` / `elo_oppo`):
 
