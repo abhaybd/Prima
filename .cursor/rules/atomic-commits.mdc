@@ -1,0 +1,12 @@
+---
+description: Split git commits into atomic, logically separate changes when asked to commit.
+alwaysApply: true
+---
+
+# Atomic commits
+
+When asked to commit, split the working tree into multiple commits whenever the changes are logically distinct. Do not wait to be told to split.
+
+Each commit should be one concern. Typical splits: copy/terminology vs layout, feature vs follow-up polish, product code vs agent/docs workflow.
+
+Do not combine unrelated files or mix a behavior change with a later visual tweak in the same commit.
