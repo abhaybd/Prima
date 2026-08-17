@@ -1,5 +1,6 @@
 import { Chess } from 'chess.js'
 import { legalUcis } from '../chess'
+import type { OpponentSampleMode } from '../../types/config'
 import { mirrorMove, MOVE_INDEX, MOVE_VOCAB } from './moves'
 
 export interface LegalPolicy {
@@ -37,14 +38,52 @@ export function decodePolicy(fen: string, logits: Float32Array | number[]): Lega
   return entries.map((e, i) => ({ uci: e.uci, logit: e.logit, p: probs[i] }))
 }
 
-export function sampleMove(policy: LegalPolicy[], random: () => number = Math.random): string {
+/** Opponent nucleus (CSSLab UCI `TopP`). 1.0 keeps hanging-piece tail mass. */
+export const OPPONENT_TOP_P = 0.9
+
+/** Keep the p-sorted prefix whose cumulative mass is ≤ `topP` (always at least the top move). */
+export function nucleusPolicy(policy: LegalPolicy[], topP: number): LegalPolicy[] {
+  if (policy.length === 0 || topP >= 1) return policy
+  const sorted = [...policy].sort((a, b) => b.p - a.p)
+  const kept: LegalPolicy[] = []
+  let cum = 0
+  for (let i = 0; i < sorted.length; i++) {
+    cum += sorted[i].p
+    if (i === 0 || cum <= topP) kept.push(sorted[i])
+    else break
+  }
+  const sum = kept.reduce((s, m) => s + m.p, 0)
+  if (sum <= 0) return kept
+  return kept.map((m) => ({ ...m, p: m.p / sum }))
+}
+
+export function sampleMove(
+  policy: LegalPolicy[],
+  random: () => number = Math.random,
+  topP: number = OPPONENT_TOP_P,
+): string {
   if (policy.length === 0) throw new Error('No legal moves to sample')
+  const dist = nucleusPolicy(policy, topP)
   let r = random()
-  for (const move of policy) {
+  for (const move of dist) {
     r -= move.p
     if (r <= 0) return move.uci
   }
-  return policy[policy.length - 1].uci
+  return dist[dist.length - 1].uci
+}
+
+export function chooseOpponentMove(
+  policy: LegalPolicy[],
+  mode: OpponentSampleMode,
+  topP: number = OPPONENT_TOP_P,
+  random: () => number = Math.random,
+): string {
+  if (mode === 'argmax') {
+    const top = topMove(policy)
+    if (!top) throw new Error('No legal moves to sample')
+    return top.uci
+  }
+  return sampleMove(policy, random, topP)
 }
 
 export function topMove(policy: LegalPolicy[]): LegalPolicy | undefined {
