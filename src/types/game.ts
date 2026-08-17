@@ -33,6 +33,6 @@ export interface MoveRecord {
   isForcing: boolean
   phase: GamePhase
   evaluated: boolean
-  /** True if any attempt on this ply failed Channel A or B. Absent on older records. */
+  /** True if any attempt on this ply failed the optimality freeze. Absent on older records. */
   hadRealFreeze?: boolean
 }

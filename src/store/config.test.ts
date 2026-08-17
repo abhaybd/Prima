@@ -84,6 +84,33 @@ describe('config persistence', () => {
       JSON.stringify({ opponentElo: 1500, thresholdElo: 2000, timeControl: { initial: 180, increment: 0 } }),
     )
     expect(loadConfig().opponentElo).toBe(1000)
-    expect(loadConfig().configVersion).toBe(2)
+    expect(loadConfig().configVersion).toBe(3)
+  })
+
+  it('drops the old Stockfish WDL settings', () => {
+    const memory = new Map<string, string>()
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: {
+        getItem: (k: string) => memory.get(k) ?? null,
+        setItem: (k: string, v: string) => memory.set(k, v),
+        removeItem: (k: string) => memory.delete(k),
+      },
+      configurable: true,
+    })
+    memory.set(
+      CONFIG_STORAGE_KEY,
+      JSON.stringify({
+        configVersion: 2,
+        tauWdl: 0.12,
+        wdlClauseEnabled: true,
+        sfMovetimeMs: 80,
+        opponentElo: 1800,
+      }),
+    )
+    expect(loadConfig()).not.toHaveProperty('tauWdl')
+    expect(loadConfig()).not.toHaveProperty('wdlClauseEnabled')
+    expect(loadConfig()).not.toHaveProperty('sfMovetimeMs')
+    expect(loadConfig().opponentElo).toBe(1800)
+    expect(loadConfig().configVersion).toBe(3)
   })
 })

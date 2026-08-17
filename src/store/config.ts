@@ -33,7 +33,7 @@ export function loadConfig(): Config {
       parsed.opponentElo = 1000
     }
     const merged = mergeConfig(DEFAULT_CONFIG, parsed)
-    if (version < 2) saveConfig(merged)
+    if (version < 3) saveConfig(merged)
     return merged
   } catch {
     return cloneDefault()
@@ -50,12 +50,10 @@ export function mergeConfig(base: Config, patch: Partial<Config>): Config {
     increment: patch.timeControl?.increment ?? base.timeControl.increment,
   }
   return {
-    configVersion: num(patch.configVersion, base.configVersion),
+    configVersion: Math.max(num(patch.configVersion, base.configVersion), base.configVersion),
     opponentElo: num(patch.opponentElo, base.opponentElo),
     thresholdElo: num(patch.thresholdElo, base.thresholdElo),
     tauRatio: num(patch.tauRatio, base.tauRatio),
-    tauWdl: num(patch.tauWdl, base.tauWdl),
-    wdlClauseEnabled: patch.wdlClauseEnabled ?? base.wdlClauseEnabled,
     maxRetries: num(patch.maxRetries, base.maxRetries),
     freezeClockMode: isFreezeClockMode(patch.freezeClockMode)
       ? patch.freezeClockMode
@@ -65,7 +63,6 @@ export function mergeConfig(base: Config, patch: Partial<Config>): Config {
     decoyFreezeRate: num(patch.decoyFreezeRate, base.decoyFreezeRate),
     verdictGateMs: num(patch.verdictGateMs, base.verdictGateMs),
     timeControl,
-    sfMovetimeMs: num(patch.sfMovetimeMs, base.sfMovetimeMs),
     userColor: isUserColor(patch.userColor) ? patch.userColor : base.userColor,
     maiaVariant: isMaiaVariant(patch.maiaVariant) ? patch.maiaVariant : base.maiaVariant,
   }

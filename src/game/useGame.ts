@@ -1,7 +1,6 @@
 import { Chess } from 'chess.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createMaiaClient, type MaiaClient } from '../engine/maiaClient'
-import { createStockfishClient, type StockfishClient } from '../engine/stockfishClient'
 import {
   applyUci,
   isForcingMove,
@@ -25,11 +24,10 @@ import {
   tickClocks,
   type ClockState,
 } from '../lib/clocks'
-import { combineChannels, isRealFreezeTrigger, maybeDecoy, policyRatio, skipEvalReason } from '../lib/freeze'
+import { freezeVerdict, isRealFreezeTrigger, maybeDecoy, policyRatio, skipEvalReason } from '../lib/freeze'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { moveProb, sampleMove, topMove } from '../lib/maia/decode'
 import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type EvalComment } from '../lib/pgn'
-import { isExtremeExpected, userPovExpected } from '../lib/wdl'
 import { loadConfig } from '../store/config'
 import { putGame, putMove } from '../store/db'
 import { DEFAULT_CONFIG, type Color, type Config, type TimeControl } from '../types/config'
@@ -48,7 +46,7 @@ export interface FreezeView {
   decoy: boolean
   retries: number
   maxRetries: number
-  revealed: { sfBest: string; thresholdTop: string } | null
+  revealed: { thresholdTop: string } | null
 }
 
 export interface LoadProgress {
@@ -120,7 +118,6 @@ export function useGame() {
   const chessRef = useRef(new Chess())
   const configRef = useRef<Config>(loadConfig())
   const maiaRef = useRef<MaiaClient | null>(null)
-  const sfRef = useRef<StockfishClient | null>(null)
   const pendingRef = useRef<PendingPly | null>(null)
   const gameMetaRef = useRef<{ gameId: string; startedAt: number; userColor: Color } | null>(
     null,
@@ -413,11 +410,8 @@ export function useGame() {
             trigger: 'decoy',
             freeze: false,
             ratio: 1,
-            wdlDelta: 0,
             thresholdTopMove: uci,
             tauRatio: config.tauRatio,
-            tauWdl: config.tauWdl,
-            wdlClauseEnabled: config.wdlClauseEnabled,
           },
         })
         return
@@ -462,13 +456,7 @@ export function useGame() {
           legalMoveCount: legal.length,
           afterMoveTerminal: terminalAfter,
           inOpeningBook: bookRef.current?.hasFen(chess.fen()) ?? false,
-          wdlClauseEnabled: false,
         })
-        const tau = {
-          tauRatio: config.tauRatio,
-          tauWdl: config.tauWdl,
-          wdlClauseEnabled: config.wdlClauseEnabled,
-        }
 
         const opponentPromise = terminalAfter
           ? Promise.resolve(null)
@@ -486,8 +474,7 @@ export function useGame() {
             trigger: 'none',
             freeze: false,
             ratio: 0,
-            wdlDelta: 0,
-            ...tau,
+            tauRatio: config.tauRatio,
           }
           if (terminalAfter) {
             await acceptUserMove(uci, {
@@ -518,62 +505,14 @@ export function useGame() {
           return
         }
 
-        const sf = config.wdlClauseEnabled ? sfRef.current : null
         const thresholdPromise = maia.policy(
           fenBefore,
           config.thresholdElo,
           config.opponentElo,
         )
-        const searchBefore = sf
-          ? sf.evaluate(fenBefore, config.sfMovetimeMs)
-          : Promise.resolve(null)
 
-        const beforeEval = await searchBefore
-        const preMoveExpected = beforeEval
-          ? userPovExpected(beforeEval.stmExpected, true)
-          : undefined
-
-        if (
-          beforeEval &&
-          preMoveExpected !== undefined &&
-          isExtremeExpected(preMoveExpected)
-        ) {
-          await Promise.all([gate, opponentPromise])
-          evaluatingRef.current = false
-          await acceptUserMove(uci, {
-            ratio: 0,
-            wdlDelta: 0,
-            sfBestMove: beforeEval.bestMove,
-            thresholdTopMove: '',
-            trigger: 'none',
-            resolved: 'accepted',
-            evaluated: false,
-            isForcing: isForcingMove(fenBefore, beforeEval.bestMove),
-            evalComment: {
-              ply,
-              uci,
-              evaluated: false,
-              skipReason: 'extreme-wdl',
-              trigger: 'none',
-              freeze: false,
-              ratio: 0,
-              wdlDelta: 0,
-              eBest: preMoveExpected,
-              wdlStm: beforeEval.wdl,
-              sfBestMove: beforeEval.bestMove,
-              ...tau,
-            },
-          })
-          return
-        }
-
-        const afterEval = sf
-          ? sf.evaluate(chess.fen(), config.sfMovetimeMs)
-          : Promise.resolve(null)
-
-        const [threshold, afterSearch] = await Promise.all([
+        const [threshold] = await Promise.all([
           thresholdPromise,
-          afterEval,
           gate,
           opponentPromise,
         ])
@@ -583,16 +522,7 @@ export function useGame() {
         const pMove = moveProb(policy, uci)
         const pTop = top?.p ?? 0
         const ratio = policyRatio(pMove, pTop)
-        let eBest: number | undefined
-        let eAfter: number | undefined
-        let delta = 0
-        if (beforeEval && afterSearch) {
-          eBest = userPovExpected(beforeEval.stmExpected, true)
-          eAfter = userPovExpected(afterSearch.stmExpected, false)
-          delta = eBest - eAfter
-        }
-
-        const channel = combineChannels(ratio, delta, config)
+        const channel = freezeVerdict(ratio, config.tauRatio)
         const pending = pendingRef.current
         const skipDecoy = pending?.skipDecoy || pending?.decoyActive
         const decoy =
@@ -609,23 +539,17 @@ export function useGame() {
           pMove,
           pTop,
           ratio,
-          eBest,
-          eAfter,
-          wdlDelta: delta,
-          wdlStm: beforeEval?.wdl,
-          wdlAfterStm: afterSearch?.wdl,
           trigger: decoy && !channel.freeze ? 'decoy' : channel.trigger,
           freeze: channel.freeze || decoy,
-          sfBestMove: beforeEval?.bestMove ?? '',
           thresholdTopMove: top?.uci ?? '',
-          ...tau,
+          tauRatio: config.tauRatio,
         }
 
         if (channel.freeze || decoy) {
           if (pending && channel.freeze) pending.hadRealFreeze = true
           const fails = (pending?.attempts.length ?? 1)
           if (channel.freeze && fails >= config.maxRetries) {
-            const best = beforeEval?.bestMove || top?.uci || uci
+            const best = top?.uci || uci
             restoreFen(chess, fenBefore)
             applyUci(chess, best)
             setState((s) => ({
@@ -634,18 +558,18 @@ export function useGame() {
                 decoy: false,
                 retries: fails,
                 maxRetries: config.maxRetries,
-                revealed: { sfBest: beforeEval?.bestMove ?? '', thresholdTop: top?.uci ?? '' },
+                revealed: { thresholdTop: top?.uci ?? '' },
               },
             }))
             await acceptUserMove(best, {
               ratio,
-              wdlDelta: delta,
-              sfBestMove: beforeEval?.bestMove ?? '',
+              wdlDelta: 0,
+              sfBestMove: '',
               thresholdTopMove: top?.uci ?? '',
               trigger: channel.trigger,
               resolved: 'revealed',
               evaluated: true,
-              isForcing: isForcingMove(fenBefore, beforeEval?.bestMove ?? best),
+              isForcing: isForcingMove(fenBefore, best),
               evalComment: { ...evalComment, uci: best, freeze: true, trigger: channel.trigger },
             })
             return
@@ -665,13 +589,13 @@ export function useGame() {
 
         await acceptUserMove(uci, {
           ratio,
-          wdlDelta: delta,
-          sfBestMove: beforeEval?.bestMove ?? '',
+          wdlDelta: 0,
+          sfBestMove: '',
           thresholdTopMove: top?.uci ?? '',
           trigger: 'none',
           resolved: 'accepted',
           evaluated: true,
-          isForcing: isForcingMove(fenBefore, beforeEval?.bestMove ?? uci),
+          isForcing: isForcingMove(fenBefore, uci),
           evalComment: { ...evalComment, freeze: false, trigger: 'none' },
         })
       } catch (err) {
@@ -726,17 +650,6 @@ export function useGame() {
           },
         }))
       })
-      if (config.wdlClauseEnabled) {
-        setState((s) => ({
-          ...s,
-          loadProgress: { loaded: 1, total: 1, label: 'Starting Stockfish…' },
-        }))
-        if (!sfRef.current) sfRef.current = createStockfishClient()
-        await sfRef.current.evaluate(new Chess().fen(), 16)
-      } else if (sfRef.current) {
-        sfRef.current.terminate()
-        sfRef.current = null
-      }
 
       bookRef.current = await bookPromise
       const userColor = resolveUserColor(config.userColor)
@@ -749,14 +662,12 @@ export function useGame() {
       freezeGraceEndsAtRef.current = null
       clocksRef.current = createClocks(config.timeControl.initial, Date.now())
       moveStartRef.current = Date.now()
-      const startLine = `game ${gameId} user=${userColor} minOpt=${(config.tauRatio * 100).toFixed(0)}% tauW=${config.tauWdl} wdlOn=${config.wdlClauseEnabled ? 'yes' : 'no'} book=${bookRef.current?.size ?? 0} expertElo=${config.thresholdElo} opponentElo=${config.opponentElo}`
+      const startLine = `game ${gameId} user=${userColor} minOpt=${(config.tauRatio * 100).toFixed(0)}% book=${bookRef.current?.size ?? 0} expertElo=${config.thresholdElo} opponentElo=${config.opponentElo}`
       console.info(EVAL_LOG_PREFIX, startLine)
       const debugMeta: DebugGameMeta = {
         gameId,
         userColor,
         tauRatio: config.tauRatio,
-        tauWdl: config.tauWdl,
-        wdlOn: config.wdlClauseEnabled,
         bookSize: bookRef.current?.size ?? 0,
         thresholdElo: config.thresholdElo,
         opponentElo: config.opponentElo,
@@ -791,8 +702,6 @@ export function useGame() {
     } catch (err) {
       maiaRef.current?.terminate()
       maiaRef.current = null
-      sfRef.current?.terminate()
-      sfRef.current = null
       const message = err instanceof Error ? err.message : String(err)
       debugNotesRef.current = [...debugNotesRef.current, message]
       setState((s) => ({
@@ -848,7 +757,6 @@ export function useGame() {
   useEffect(() => {
     return () => {
       maiaRef.current?.terminate()
-      sfRef.current?.terminate()
     }
   }, [])
 

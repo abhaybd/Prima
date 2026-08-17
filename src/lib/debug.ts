@@ -9,8 +9,6 @@ export interface DebugGameMeta {
   gameId: string
   userColor: Color
   tauRatio: number
-  tauWdl: number
-  wdlOn: boolean
   bookSize: number
   thresholdElo: number
   opponentElo: number

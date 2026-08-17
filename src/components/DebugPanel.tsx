@@ -6,7 +6,6 @@ import {
   type DebugVerdict,
 } from '../lib/debug'
 import type { EvalComment } from '../lib/pgn'
-import type { Wdl } from '../lib/wdl'
 import styles from './DebugPanel.module.css'
 
 interface Props {
@@ -31,8 +30,6 @@ export function DebugPanel({ meta, evals, notes }: Props) {
 
   const current = evals[selected]
   const tauRatio = current?.tauRatio ?? meta?.tauRatio
-  const tauWdl = current?.tauWdl ?? meta?.tauWdl
-  const wdlOn = current?.wdlClauseEnabled ?? meta?.wdlOn ?? false
 
   return (
     <section className={`panel ${styles.panel}`}>
@@ -44,11 +41,10 @@ export function DebugPanel({ meta, evals, notes }: Props) {
             <li>Bot {meta.opponentElo}</li>
             <li>Expert {meta.thresholdElo}</li>
             <li>min opt {(meta.tauRatio * 100).toFixed(0)}%</li>
-            <li>τ_wdl {meta.wdlOn ? meta.tauWdl.toFixed(2) : 'off'}</li>
             <li>Book {meta.bookSize}</li>
           </ul>
         ) : (
-          <p className="hint">Start a game to stream channel A/B on each of your moves.</p>
+          <p className="hint">Start a game to stream optimality on each of your moves.</p>
         )}
       </header>
       {notes.length ? (
@@ -60,12 +56,7 @@ export function DebugPanel({ meta, evals, notes }: Props) {
       ) : null}
       {current ? (
         <div className={styles.body}>
-          <EvalDetail
-            d={current}
-            tauRatio={tauRatio}
-            tauWdl={tauWdl}
-            wdlOn={wdlOn}
-          />
+          <EvalDetail d={current} tauRatio={tauRatio} />
           <History evals={evals} selected={selected} onSelect={setSelected} />
         </div>
       ) : (
@@ -75,22 +66,9 @@ export function DebugPanel({ meta, evals, notes }: Props) {
   )
 }
 
-function EvalDetail({
-  d,
-  tauRatio,
-  tauWdl,
-  wdlOn,
-}: {
-  d: EvalComment
-  tauRatio: number | undefined
-  tauWdl: number | undefined
-  wdlOn: boolean
-}) {
+function EvalDetail({ d, tauRatio }: { d: EvalComment; tauRatio: number | undefined }) {
   const verdict = debugVerdict(d)
   const ratioFire = d.trigger === 'ratio' || d.trigger === 'both'
-  const wdlFire = d.trigger === 'wdl' || d.trigger === 'both'
-  const eDrop =
-    d.eBest !== undefined && d.eAfter !== undefined ? d.eBest - d.eAfter : d.wdlDelta
 
   return (
     <div className={styles.detail}>
@@ -112,30 +90,13 @@ function EvalDetail({
 
       <div className={styles.channels}>
         <ChannelLight letter="A" label="Optimality" fired={ratioFire} skipped={!!d.skipReason} />
-        <ChannelLight
-          letter="B"
-          label="WDL drop"
-          fired={wdlFire}
-          skipped={!!d.skipReason || !wdlOn}
-          off={!wdlOn}
-        />
       </div>
 
       <Meter
-        label="Channel A · optimality"
+        label="Optimality"
         value={d.ratio}
         tau={tauRatio}
-        passIf="gte-tau"
         format={(n) => `${(n * 100).toFixed(0)}%`}
-        empty={d.skipReason ? 'skipped' : undefined}
-      />
-      <Meter
-        label="Channel B · WDL Δ (user POV)"
-        value={d.wdlDelta}
-        tau={tauWdl}
-        passIf="lte-tau"
-        format={(n) => n.toFixed(3)}
-        disabled={!wdlOn}
         empty={d.skipReason ? 'skipped' : undefined}
       />
 
@@ -143,27 +104,6 @@ function EvalDetail({
         <div className={styles.policy}>
           <BarRow label="P(move)" value={d.pMove} max={Math.max(d.pTop ?? 0, d.pMove ?? 0, 0.01)} />
           <BarRow label="P(expert top)" value={d.pTop} max={Math.max(d.pTop ?? 0, d.pMove ?? 0, 0.01)} />
-        </div>
-      ) : null}
-
-      {eDrop !== undefined || d.eBest !== undefined ? (
-        <div className={styles.expected}>
-          <span className="statLabel">E user POV</span>
-          <span>
-            {fmtOpt(d.eBest, 3)}
-            <span className={styles.arrow}>→</span>
-            {fmtOpt(d.eAfter, 3)}
-          </span>
-          <span className={eDrop !== undefined && eDrop > (tauWdl ?? 0) ? styles.bad : styles.ok}>
-            Δ {fmtOpt(eDrop, 3)}
-          </span>
-        </div>
-      ) : null}
-
-      {d.wdlStm || d.wdlAfterStm ? (
-        <div className={styles.wdlBlock}>
-          {d.wdlStm ? <WdlRow label="Before (you STM)" wdl={d.wdlStm} /> : null}
-          {d.wdlAfterStm ? <WdlRow label="After (opp STM)" wdl={d.wdlAfterStm} /> : null}
         </div>
       ) : null}
 
@@ -175,10 +115,6 @@ function EvalDetail({
         <div>
           <dt>Expert top</dt>
           <dd>{d.thresholdTopMove || '—'}</dd>
-        </div>
-        <div>
-          <dt>SF best</dt>
-          <dd>{d.sfBestMove || '—'}</dd>
         </div>
       </dl>
       {d.attempts && d.attempts.length > 1 ? (
@@ -193,21 +129,19 @@ function ChannelLight({
   label,
   fired,
   skipped,
-  off,
 }: {
   letter: string
   label: string
   fired: boolean
   skipped: boolean
-  off?: boolean
 }) {
-  const tone = off || skipped ? 'idle' : fired ? 'fired' : 'ok'
+  const tone = skipped ? 'idle' : fired ? 'fired' : 'ok'
   return (
     <div className={`${styles.light} ${styles[tone]}`}>
       <span className={styles.dot} />
       <span>
         <strong>{letter}</strong> {label}
-        {off ? ' · off' : skipped ? ' · skip' : fired ? ' · fire' : ' · ok'}
+        {skipped ? ' · skip' : fired ? ' · fire' : ' · ok'}
       </span>
     </div>
   )
@@ -217,27 +151,15 @@ function Meter({
   label,
   value,
   tau,
-  passIf,
   format,
-  disabled,
   empty,
 }: {
   label: string
   value: number | undefined
   tau: number | undefined
-  passIf: 'gte-tau' | 'lte-tau'
   format: (n: number) => string
-  disabled?: boolean
   empty?: string
 }) {
-  if (disabled) {
-    return (
-      <div className={styles.meter}>
-        <div className={styles.meterLabel}>{label}</div>
-        <p className="hint">Clause off</p>
-      </div>
-    )
-  }
   if (empty || value === undefined || tau === undefined) {
     return (
       <div className={styles.meter}>
@@ -246,15 +168,9 @@ function Meter({
       </div>
     )
   }
-  const pass = passIf === 'gte-tau' ? value >= tau : value <= tau
-  const domain =
-    passIf === 'gte-tau' ? 1 : Math.max(tau * 2, value * 1.15, 0.2)
-  const valuePct = clamp((value / domain) * 100)
-  const tauPct = clamp((tau / domain) * 100)
-  const fail =
-    passIf === 'gte-tau'
-      ? { left: 0, width: tauPct }
-      : { left: tauPct, width: 100 - tauPct }
+  const pass = value >= tau
+  const valuePct = clamp(value * 100)
+  const tauPct = clamp(tau * 100)
 
   return (
     <div className={styles.meter}>
@@ -265,7 +181,7 @@ function Meter({
         </span>
       </div>
       <div className={styles.track} title={`${format(value)} vs τ ${format(tau)}`}>
-        <span className={styles.failZone} style={{ left: `${fail.left}%`, width: `${fail.width}%` }} />
+        <span className={styles.failZone} style={{ left: 0, width: `${tauPct}%` }} />
         <span className={`${styles.fill} ${pass ? styles.fillOk : styles.fillBad}`} style={{ width: `${valuePct}%` }} />
         <span className={styles.tick} style={{ left: `${tauPct}%` }} />
       </div>
@@ -282,23 +198,6 @@ function BarRow({ label, value, max }: { label: string; value: number | undefine
         <span className={`${styles.fill} ${styles.fillMute}`} style={{ width: `${clamp((n / max) * 100)}%` }} />
       </div>
       <span className={styles.barVal}>{value === undefined ? '—' : `${(value * 100).toFixed(1)}%`}</span>
-    </div>
-  )
-}
-
-function WdlRow({ label, wdl }: { label: string; wdl: Wdl }) {
-  const total = Math.max(1, wdl.w + wdl.d + wdl.l)
-  return (
-    <div className={styles.wdlRow}>
-      <span>{label}</span>
-      <div className={styles.wdlBar}>
-        <span className={styles.w} style={{ flexGrow: wdl.w / total }} />
-        <span className={styles.d} style={{ flexGrow: wdl.d / total }} />
-        <span className={styles.l} style={{ flexGrow: wdl.l / total }} />
-      </div>
-      <span className={styles.wdlNums}>
-        {wdl.w}/{wdl.d}/{wdl.l}
-      </span>
     </div>
   )
 }
@@ -333,7 +232,7 @@ function History({
               <span className={styles.histNums}>
                 {d.skipReason
                   ? d.skipReason
-                  : `opt ${d.ratio !== undefined ? `${(d.ratio * 100).toFixed(0)}%` : '—'}  Δ ${d.wdlDelta?.toFixed(2) ?? '—'}`}
+                  : `opt ${d.ratio !== undefined ? `${(d.ratio * 100).toFixed(0)}%` : '—'}`}
               </span>
             </button>
           )
@@ -345,8 +244,4 @@ function History({
 
 function clamp(n: number): number {
   return Math.min(100, Math.max(0, n))
-}
-
-function fmtOpt(n: number | undefined, digits: number): string {
-  return n === undefined ? '—' : n.toFixed(digits)
 }

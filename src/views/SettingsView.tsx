@@ -105,39 +105,6 @@ export function SettingsView() {
             />
           </Field>
           <Field
-            label="WDL Δ τ"
-            tip="Freeze if Stockfish expected score drops more than this versus its best move. Leave loose; tightening it trains engine accuracy instead of blitz."
-          >
-            <input
-              type="number"
-              step="0.01"
-              value={config.tauWdl}
-              onChange={(e) => patch('tauWdl', Number(e.target.value))}
-            />
-          </Field>
-          <Field
-            label="Stockfish WDL clause"
-            tip="Optional second freeze check using Stockfish. Turn off if it almost never fires on its own."
-          >
-            <select
-              value={config.wdlClauseEnabled ? 'on' : 'off'}
-              onChange={(e) => patch('wdlClauseEnabled', e.target.value === 'on')}
-            >
-              <option value="on">On</option>
-              <option value="off">Off</option>
-            </select>
-          </Field>
-          <Field
-            label="Stockfish movetime (ms)"
-            tip="How long Stockfish thinks per search. Each evaluated move runs two searches."
-          >
-            <input
-              type="number"
-              value={config.sfMovetimeMs}
-              onChange={(e) => patch('sfMovetimeMs', Number(e.target.value))}
-            />
-          </Field>
-          <Field
             label="Maia model"
             tip="Which Maia-3 network plays as the bot and as the expert scoring your moves. 23M is default; 5M downloads less."
           >
@@ -157,7 +124,7 @@ export function SettingsView() {
         <div className={styles.grid}>
           <Field
             label="Max retries"
-            tip="After this many failed attempts in a freeze, the engine move is revealed and played."
+            tip="After this many failed attempts in a freeze, the expert's top move is revealed and played."
           >
             <input
               type="number"

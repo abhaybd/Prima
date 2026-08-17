@@ -13,8 +13,6 @@ export interface Config {
   opponentElo: number
   thresholdElo: number
   tauRatio: number
-  tauWdl: number
-  wdlClauseEnabled: boolean
   maxRetries: number
   freezeClockMode: FreezeClockMode
   freezePenaltySeconds: number
@@ -22,18 +20,15 @@ export interface Config {
   decoyFreezeRate: number
   verdictGateMs: number
   timeControl: TimeControl
-  sfMovetimeMs: number
   userColor: UserColorPref
   maiaVariant: MaiaVariant
 }
 
 export const DEFAULT_CONFIG: Config = {
-  configVersion: 2,
+  configVersion: 3,
   opponentElo: 1000,
   thresholdElo: 2000,
   tauRatio: 0.15,
-  tauWdl: 0.12,
-  wdlClauseEnabled: true,
   maxRetries: 3,
   freezeClockMode: 'penalty',
   freezePenaltySeconds: 5,
@@ -41,7 +36,6 @@ export const DEFAULT_CONFIG: Config = {
   decoyFreezeRate: 0.08,
   verdictGateMs: 250,
   timeControl: { initial: 180, increment: 0 },
-  sfMovetimeMs: 80,
   userColor: 'w',
   maiaVariant: '23m',
 }
