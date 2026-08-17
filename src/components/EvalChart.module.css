@@ -1,0 +1,19 @@
+.wrap {
+  width: 100%;
+  cursor: pointer;
+}
+
+.tooltip {
+  background: #151b23;
+  border: 1px solid #3d444d;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #e6edf3;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltipLabel {
+  color: #8b98a5;
+  margin-bottom: 4px;
+}

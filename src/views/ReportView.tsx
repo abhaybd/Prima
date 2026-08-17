@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Chessboard } from 'react-chessboard'
 import type { Square } from 'chess.js'
+import { EvalChart } from '../components/EvalChart'
 import { getGame, getMovesForGame } from '../store/db'
 import { downloadText } from '../store/export'
 import { debugHref, useDebugMode } from '../lib/debug'
 import { pgnForDisplay } from '../lib/pgn'
 import { plyHadRealFreeze, ratioForAttempt } from '../lib/freeze'
-import type { GameRecord, MoveRecord } from '../types/game'
+import { evalAtPly, formatEvalPawns, timelineFromMoves } from '../lib/sfEval'
+import type { GameRecord, MoveRecord, SfEvalPoint } from '../types/game'
 import { applyUci, newChess, parseUci, uciToSan } from '../lib/chess'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { formatOptimality, mean } from '../lib/metrics'
@@ -102,6 +104,11 @@ export function ReportView() {
     }
   }, [evaluated, freezes])
 
+  const sfEvals = useMemo<SfEvalPoint[]>(() => {
+    if (game?.sfEvals && game.sfEvals.length > 0) return game.sfEvals
+    return timelineFromMoves(moves)
+  }, [game, moves])
+
   const pgn = game?.pgn ? pgnForDisplay(game.pgn, debug) : ''
 
   if (loadState === 'not-found') {
@@ -132,6 +139,25 @@ export function ReportView() {
         <Stat label="Forcing freeze rate" value={pct(stats.forcingRate)} />
         <Stat label="Quiet freeze rate" value={pct(stats.quietRate)} />
       </div>
+      {sfEvals.length > 0 ? (
+        <div className="panel">
+          <h2>Eval</h2>
+          <p className="hint">Stockfish, White POV, pawns. Click a ply to open it in the list.</p>
+          <EvalChart
+            points={sfEvals}
+            selectedPly={selected?.ply ?? null}
+            onSelectPly={(ply) => {
+              const exact = moves.find((m) => m.ply === ply)
+              if (exact) {
+                setSelected(exact)
+                return
+              }
+              const prior = [...moves].reverse().find((m) => m.ply < ply)
+              if (prior) setSelected(prior)
+            }}
+          />
+        </div>
+      ) : null}
       {pgn ? (
         <div className="panel">
           <div className={styles.pgnHead}>
@@ -175,6 +201,7 @@ export function ReportView() {
               <tr>
                 <th>#</th>
                 <th>Move</th>
+                <th>Eval</th>
                 <th>Optimality</th>
                 <th>Retries</th>
               </tr>
@@ -207,6 +234,9 @@ export function ReportView() {
                       ) : null}
                     </span>
                   </td>
+                  <td className={styles.eval}>
+                    {formatEvalPawns(evalAtPly(m.ply, m, sfEvals))}
+                  </td>
                   <td>
                     <OptimalityCell value={m.evaluated ? m.ratio : null} />
                   </td>
@@ -231,6 +261,7 @@ export function ReportView() {
                 />
               </div>
               <div className={styles.replayMeta}>
+                <p>Eval: {formatEvalPawns(evalAtPly(selected.ply, selected, sfEvals))}</p>
                 {selected.sfBestMove ? (
                   <p>
                     Engine: {uciToSan(selected.fen, selected.sfBestMove)}

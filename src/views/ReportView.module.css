@@ -155,3 +155,8 @@
   display: inline-flex;
   opacity: 0.75;
 }
+
+.eval {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
