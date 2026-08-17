@@ -2,7 +2,7 @@
 
 A browser chess trainer for **acceptable play under time pressure**, not engine-optimal accuracy.
 
-You play blitz against a human-like [Maia-3](https://github.com/CSSLab/maia3) bot. After each of your moves, two independent checks decide whether the move is acceptable. If either fails, the position **freezes**: the move is undone, a neutral overlay appears, and you try again. Freeze rate, retries, and how those numbers change as the clock runs down are the metrics that matter.
+You play blitz against a human-like [Maia-3](https://github.com/CSSLab/maia3) bot. After each of your moves, the app checks whether a stronger human (the *expert*) would also play it, relative to their top choice. If that optimality is too low, the position **freezes**: the move is undone, a neutral overlay appears, and you try again. Freeze rate, retries, and how those numbers change as the clock runs down are the metrics that matter.
 
 The hypothesis: strong blitz is not finding best moves quickly. It is reliably avoiding unacceptable ones while the clock is ticking.
 
@@ -15,12 +15,9 @@ The hypothesis: strong blitz is not finding best moves quickly. It is reliably a
 
 ## How a freeze works
 
-After you move, the app scores it on two channels:
+After you move, the app scores **optimality** — would a stronger human (the *expert* rating, not the bot) also play this, relative to their top choice? Shown as a percent of the expert’s top-move probability.
 
-1. **Optimality** — would a stronger human (the *expert* rating, not the bot) also play this, relative to their top choice? Shown as a percent of the expert’s top-move probability.
-2. **WDL drop** (optional) — did Stockfish’s expected score fall too far versus its best move?
-
-A freeze does not tell you *why*, or which channel fired. Real freezes and occasional **decoy** freezes look identical, so a freeze is not a free “this was a mistake” signal. Repeating the same move after a freeze is allowed; that is treated as confidence in the original choice. After several failed attempts the app reveals the engine move and the expert’s top move, plays the engine move, and records a miss.
+A freeze does not tell you *why*. Real freezes and occasional **decoy** freezes look identical, so a freeze is not a free “this was a mistake” signal. Repeating the same move after a freeze is allowed; that is treated as confidence in the original choice. After several failed attempts the app reveals the expert’s top move, plays it, and records a miss.
 
 Moves that stay in the opening book, forced-only-move positions, and already-decided games are not evaluated. Leaving the book is evaluated.
 
@@ -30,14 +27,14 @@ Moves that stay in the opening book, forced-only-move positions, and already-dec
 |---|---|
 | `/` | Play: board, your clock, color, bot Elo, time control, freeze overlay |
 | `/settings` | Difficulty, freeze behavior, backup |
-| `/report/:gameId` | Post-game stats and move-by-move replay (channels and attempts shown *after* the game) |
-| `/dashboard` | Cross-game stats. Primary chart: quality versus remaining clock. Headline: unique-WDL fire rate |
+| `/report/:gameId` | Post-game stats and move-by-move replay (optimality and attempts shown *after* the game) |
+| `/dashboard` | Cross-game stats. Primary chart: optimality versus remaining clock |
 
 **Settings that are easy to mix up**
 
 - **Opponent Elo** (play page) is bot strength. Maia uses that rating for both sides when the bot moves.
 - **Expert Elo** is the bar *your* moves are scored against. Set it above the bot. It is not the bot’s rating.
-- **Min optimality** is the difficulty dial. Lower is more permissive. The WDL clause is a loose backstop; tightening it turns the drill into an engine-accuracy trainer, which is not the goal.
+- **Min optimality** is the difficulty dial. Lower is more permissive.
 
 **Clock during a freeze**
 
@@ -48,11 +45,11 @@ Moves that stay in the opening book, forced-only-move positions, and already-dec
 
 ## Metrics
 
-After a game: freeze counts by channel, mean retries, misses, mean WDL drop and mean optimality, freeze rate on quiet vs forcing positions. The quiet-position rate is the interesting one.
+After a game: freeze counts, mean retries, misses, mean optimality, freeze rate on quiet vs forcing positions. The quiet-position rate is the interesting one.
 
-Across games, the **quality versus remaining clock** chart (mean WDL drop and mean optimality in time buckets) is the point of the tool: it measures degradation under time pressure. **Unique-WDL fire rate** is the share of real freezes where only Stockfish fired. If that stays near zero after many evaluated moves, turn the WDL clause off in Settings — Stockfish is then unused cost.
+Across games, the **quality versus remaining clock** chart (mean optimality in time buckets) is the point of the tool: it measures degradation under time pressure.
 
-Decoy freezes are excluded from quality metrics.
+Decoy freezes are excluded from quality metrics. On the game report they are the yellow rows.
 
 ## Run
 
@@ -66,7 +63,7 @@ On first **New game** the app downloads a Maia-3 ONNX model from Hugging Face (~
 
 Optional: put `maia3-23m.fp16.onnx` / `maia3-5m.fp16.onnx` in `public/models/` to skip Hugging Face. Files come from [bqrio/maia3-onnx](https://huggingface.co/bqrio/maia3-onnx).
 
-Stockfish is the single-threaded lite WASM build in `public/engines/` (no special COOP/COEP headers). Vite copies ONNX Runtime WASM into `public/ort/` when the dev server or production build starts.
+Vite copies ONNX Runtime WASM into `public/ort/` when the dev server or production build starts.
 
 ## License
 
