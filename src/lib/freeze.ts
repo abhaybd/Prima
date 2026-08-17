@@ -1,4 +1,4 @@
-import type { FreezeTrigger } from '../types/game'
+import type { FreezeTrigger, MoveResolved } from '../types/game'
 
 export type SkipReason = 'opening' | 'forced' | 'terminal'
 
@@ -57,4 +57,39 @@ export function plyHadRealFreeze(m: {
   if (isRealFreezeTrigger(m.trigger)) return true
   if (m.hadRealFreeze === false || m.trigger === 'decoy') return false
   return m.retries > 0
+}
+
+/** Align stored attempts with per-attempt optimality when the ply is committed. */
+export function commitAttempts(
+  attempts: string[],
+  attemptRatios: number[],
+  uci: string,
+  ratio: number,
+  resolved: MoveResolved,
+): { attempts: string[]; attemptRatios: number[] } {
+  const aligned = attempts.map((_, i) =>
+    typeof attemptRatios[i] === 'number' ? attemptRatios[i] : ratio,
+  )
+  if (attempts.includes(uci)) return { attempts, attemptRatios: aligned }
+  return {
+    attempts: [...attempts, uci],
+    attemptRatios: [...aligned, resolved === 'revealed' ? 1 : ratio],
+  }
+}
+
+/** Optimality for one attempt. Older records only have a ratio when there was a single try. */
+export function ratioForAttempt(
+  move: {
+    attempts: string[]
+    attemptRatios?: number[]
+    ratio: number
+    evaluated: boolean
+  },
+  index: number,
+): number | null {
+  if (!move.evaluated) return null
+  const stored = move.attemptRatios?.[index]
+  if (typeof stored === 'number' && Number.isFinite(stored)) return stored
+  if (move.attempts.length === 1 && index === 0) return move.ratio
+  return null
 }

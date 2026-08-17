@@ -24,7 +24,7 @@ import {
   tickClocks,
   type ClockState,
 } from '../lib/clocks'
-import { freezeVerdict, isRealFreezeTrigger, maybeDecoy, policyRatio, skipEvalReason } from '../lib/freeze'
+import { commitAttempts, freezeVerdict, isRealFreezeTrigger, maybeDecoy, policyRatio, skipEvalReason } from '../lib/freeze'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { moveProb, sampleMove, topMove } from '../lib/maia/decode'
 import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type EvalComment } from '../lib/pgn'
@@ -59,6 +59,7 @@ interface PendingPly {
   fenBefore: string
   ply: number
   attempts: string[]
+  attemptRatios: number[]
   clockRemainingMs: number
   thinkTimeMs: number
   startedAt: number
@@ -67,6 +68,11 @@ interface PendingPly {
   skipDecoy: boolean
   didFreeze: boolean
   hadRealFreeze: boolean
+}
+
+function stampAttemptRatio(pending: PendingPly | null, ratio: number): void {
+  if (!pending || pending.attempts.length === 0) return
+  pending.attemptRatios[pending.attempts.length - 1] = ratio
 }
 
 export interface PlayState {
@@ -261,9 +267,13 @@ export function useGame() {
         applyUci(chess, uci)
       }
 
-      const attempts = pending.attempts.includes(uci)
-        ? pending.attempts
-        : [...pending.attempts, uci]
+      const { attempts, attemptRatios } = commitAttempts(
+        pending.attempts,
+        pending.attemptRatios,
+        uci,
+        extras.ratio,
+        extras.resolved,
+      )
       const retries = Math.max(0, attempts.length - 1)
       const ply = pending.ply
       if (extras.evalComment) {
@@ -283,6 +293,7 @@ export function useGame() {
         fen: pending.fenBefore,
         userMove: uci,
         attempts,
+        attemptRatios,
         ratio: extras.ratio,
         wdlDelta: extras.wdlDelta,
         sfBestMove: extras.sfBestMove,
@@ -430,6 +441,7 @@ export function useGame() {
           fenBefore,
           ply,
           attempts: [uci],
+          attemptRatios: [],
           clockRemainingMs,
           thinkTimeMs,
           startedAt: Date.now(),
@@ -466,6 +478,7 @@ export function useGame() {
         if (skip) {
           await gate
           evaluatingRef.current = false
+          stampAttemptRatio(pendingRef.current, 0)
           const skipped: EvalComment = {
             ply,
             uci,
@@ -522,6 +535,7 @@ export function useGame() {
         const pMove = moveProb(policy, uci)
         const pTop = top?.p ?? 0
         const ratio = policyRatio(pMove, pTop)
+        stampAttemptRatio(pendingRef.current, ratio)
         const channel = freezeVerdict(ratio, config.tauRatio)
         const pending = pendingRef.current
         const skipDecoy = pending?.skipDecoy || pending?.decoyActive

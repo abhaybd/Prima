@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../types/config'
-import { freezeVerdict, maybeDecoy, policyRatio, plyHadRealFreeze, shouldSkipEval, skipEvalReason } from './freeze'
+import { commitAttempts, freezeVerdict, maybeDecoy, policyRatio, plyHadRealFreeze, ratioForAttempt, shouldSkipEval, skipEvalReason } from './freeze'
 
 const base = {
   legalMoveCount: 20,
@@ -53,5 +53,34 @@ describe('freeze criterion', () => {
     expect(plyHadRealFreeze({ trigger: 'decoy', retries: 1 })).toBe(false)
     expect(plyHadRealFreeze({ trigger: 'none', retries: 2, hadRealFreeze: true })).toBe(true)
     expect(plyHadRealFreeze({ trigger: 'none', retries: 2, hadRealFreeze: false })).toBe(false)
+  })
+
+  it('commits per-attempt optimality, using 1 for an auto-revealed expert move', () => {
+    expect(commitAttempts(['e2e4'], [0.2], 'e2e4', 0.2, 'accepted')).toEqual({
+      attempts: ['e2e4'],
+      attemptRatios: [0.2],
+    })
+    expect(commitAttempts(['e2e4', 'd2d4'], [0.1, 0.4], 'g1f3', 0.4, 'revealed')).toEqual({
+      attempts: ['e2e4', 'd2d4', 'g1f3'],
+      attemptRatios: [0.1, 0.4, 1],
+    })
+    expect(commitAttempts(['e2e4'], [], 'e2e4', 0.8, 'accepted')).toEqual({
+      attempts: ['e2e4'],
+      attemptRatios: [0.8],
+    })
+  })
+
+  it('reads per-attempt optimality, falling back for single-try legacy records', () => {
+    expect(ratioForAttempt({ attempts: ['e2e4'], ratio: 0.5, evaluated: false }, 0)).toBeNull()
+    expect(ratioForAttempt({ attempts: ['e2e4'], ratio: 0.5, evaluated: true }, 0)).toBe(0.5)
+    expect(
+      ratioForAttempt({ attempts: ['e2e4', 'd2d4'], ratio: 0.9, evaluated: true }, 0),
+    ).toBeNull()
+    expect(
+      ratioForAttempt(
+        { attempts: ['e2e4', 'd2d4'], attemptRatios: [0.1, 0.9], ratio: 0.9, evaluated: true },
+        0,
+      ),
+    ).toBe(0.1)
   })
 })

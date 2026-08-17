@@ -21,6 +21,8 @@ export interface MoveRecord {
   fen: string
   userMove: string
   attempts: string[]
+  /** Per-attempt optimality, parallel to `attempts`. Absent on older records. */
+  attemptRatios?: number[]
   ratio: number
   wdlDelta: number
   sfBestMove: string
