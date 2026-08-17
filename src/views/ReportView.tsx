@@ -5,7 +5,10 @@ import { getGame, getMovesForGame } from '../store/db'
 import { downloadText } from '../store/export'
 import { debugHref, useDebugMode } from '../lib/debug'
 import { pgnForDisplay } from '../lib/pgn'
+import { plyHadRealFreeze } from '../lib/freeze'
 import type { GameRecord, MoveRecord } from '../types/game'
+import { applyUci, newChess, uciToSan } from '../lib/chess'
+import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { mean } from '../lib/metrics'
 import styles from './ReportView.module.css'
 
@@ -16,6 +19,8 @@ export function ReportView() {
   const [moves, setMoves] = useState<MoveRecord[]>([])
   const [selected, setSelected] = useState<MoveRecord | null>(null)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'not-found'>('loading')
+  const [copied, setCopied] = useState(false)
+  const [book, setBook] = useState<OpeningBook | null>(null)
 
   useEffect(() => {
     if (!gameId) {
@@ -27,6 +32,7 @@ export function ReportView() {
     setGame(undefined)
     setMoves([])
     setSelected(null)
+    setCopied(false)
     void getGame(gameId)
       .then((record) => {
         if (cancelled) return
@@ -51,6 +57,28 @@ export function ReportView() {
       cancelled = true
     }
   }, [gameId])
+
+  useEffect(() => {
+    let cancelled = false
+    void loadOpeningBook()
+      .then((loaded) => {
+        if (!cancelled) setBook(loaded)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const bookPlies = useMemo(() => {
+    if (!book) return new Set<number>()
+    const plies = new Set<number>()
+    for (const m of moves) {
+      const chess = newChess(m.fen)
+      if (applyUci(chess, m.userMove) && book.hasFen(chess.fen())) plies.add(m.ply)
+    }
+    return plies
+  }, [book, moves])
 
   const evaluated = moves.filter((m) => m.evaluated && m.trigger !== 'decoy')
   const freezes = evaluated.filter((m) => m.trigger !== 'none')
@@ -96,7 +124,8 @@ export function ReportView() {
     <div className={styles.page}>
       <h1>Game report</h1>
       <p className="hint">
-        {game.result} · you were {game.userColor === 'w' ? 'White' : 'Black'} ·{' '}
+        {game.result} · you were {game.userColor === 'w' ? 'White' : 'Black'} · vs{' '}
+        {game.config.opponentElo} Elo ·{' '}
         <Link to={debugHref('/dashboard', debug)}>Dashboard</Link>
       </p>
       <div className={styles.stats}>
@@ -113,19 +142,33 @@ export function ReportView() {
         <div className="panel">
           <div className={styles.pgnHead}>
             <h2>PGN</h2>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() =>
-                downloadText(
-                  `blitzdrill-${game.gameId}.pgn`,
-                  pgn,
-                  'application/x-chess-pgn',
-                )
-              }
-            >
-              Download
-            </button>
+            <div className={styles.pgnActions}>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  void navigator.clipboard.writeText(pgn).then(() => {
+                    setCopied(true)
+                    window.setTimeout(() => setCopied(false), 1500)
+                  })
+                }}
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() =>
+                  downloadText(
+                    `blitzdrill-${game.gameId}.pgn`,
+                    pgn,
+                    'application/x-chess-pgn',
+                  )
+                }
+              >
+                Download
+              </button>
+            </div>
           </div>
           <pre className={styles.pgn}>{pgn}</pre>
         </div>
@@ -136,7 +179,7 @@ export function ReportView() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Ply</th>
+                <th>#</th>
                 <th>Move</th>
                 <th>Trigger</th>
                 <th>Ratio</th>
@@ -148,12 +191,26 @@ export function ReportView() {
               {moves.map((m) => (
                 <tr
                   key={`${m.gameId}-${m.ply}`}
-                  className={selected?.ply === m.ply ? styles.sel : ''}
+                  className={[
+                    plyHadRealFreeze(m) ? styles.freeze : '',
+                    selected?.ply === m.ply ? styles.sel : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   onClick={() => setSelected(m)}
                 >
-                  <td>{m.ply}</td>
-                  <td>{m.userMove}</td>
-                  <td>{m.trigger}</td>
+                  <td>{Math.floor(m.ply / 2) + 1}</td>
+                  <td>
+                    <span className={styles.moveCell}>
+                      {uciToSan(m.fen, m.userMove)}
+                      {bookPlies.has(m.ply) ? (
+                        <span className={styles.book} title="Opening book">
+                          <BookIcon />
+                        </span>
+                      ) : null}
+                    </span>
+                  </td>
+                  <td>{m.trigger === 'none' ? '-' : m.trigger}</td>
                   <td>{m.evaluated ? m.ratio.toFixed(2) : '—'}</td>
                   <td>{m.evaluated ? m.wdlDelta.toFixed(3) : '—'}</td>
                   <td>{m.retries}</td>
@@ -176,13 +233,16 @@ export function ReportView() {
                 />
               </div>
               <p>
-                Attempts: {selected.attempts.join(', ') || '—'}
+                Attempts: {sansFromUcis(selected.fen, selected.attempts) || '—'}
                 <br />
-                Engine best: {selected.sfBestMove || '—'}
+                Engine best: {selected.sfBestMove ? uciToSan(selected.fen, selected.sfBestMove) : '—'}
                 <br />
-                Threshold top: {selected.thresholdTopMove || '—'}
+                Threshold top:{' '}
+                {selected.thresholdTopMove
+                  ? uciToSan(selected.fen, selected.thresholdTopMove)
+                  : '—'}
                 <br />
-                Trigger: {selected.trigger} · {selected.resolved}
+                Trigger: {selected.trigger === 'none' ? '-' : selected.trigger} · {selected.resolved}
               </p>
             </>
           ) : (
@@ -209,4 +269,27 @@ function fmt(v: number | null): string {
 
 function pct(v: number | null): string {
   return v === null ? '—' : `${(v * 100).toFixed(1)}%`
+}
+
+function sansFromUcis(fen: string, ucis: string[]): string {
+  return ucis.map((uci) => uciToSan(fen, uci)).join(', ')
+}
+
+function BookIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  )
 }

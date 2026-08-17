@@ -61,6 +61,16 @@
   background: #212830;
 }
 
+.freeze {
+  background: #b8e4ef;
+  color: #111;
+}
+
+.freeze.sel {
+  background: #8fd0e0;
+  color: #111;
+}
+
 .mini {
   max-width: 320px;
 }
@@ -77,6 +87,11 @@
   margin: 0;
 }
 
+.pgnActions {
+  display: flex;
+  gap: 8px;
+}
+
 .pgn {
   margin: 0;
   white-space: pre-wrap;
@@ -84,4 +99,15 @@
   font-size: 12px;
   line-height: 1.45;
   font-variant-numeric: tabular-nums;
+}
+
+.moveCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.book {
+  display: inline-flex;
+  opacity: 0.75;
 }
