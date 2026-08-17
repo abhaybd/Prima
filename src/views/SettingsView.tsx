@@ -183,16 +183,6 @@ export function SettingsView() {
               onChange={(e) => patch('verdictGateMs', Number(e.target.value))}
             />
           </Field>
-          <Field
-            label="Opening skip (plies)"
-            tip="The first this many half-moves are not evaluated. Opening book freezes are mostly noise."
-          >
-            <input
-              type="number"
-              value={config.openingSkipPlies}
-              onChange={(e) => patch('openingSkipPlies', Number(e.target.value))}
-            />
-          </Field>
           <div className={styles.clockGroup}>
             <Field
               label="Clock during freeze"

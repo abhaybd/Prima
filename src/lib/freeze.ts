@@ -5,18 +5,17 @@ import { isExtremeExpected } from './wdl'
 export type SkipReason = 'opening' | 'forced' | 'terminal' | 'extreme-wdl'
 
 export interface SkipEvalInput {
-  ply: number
   legalMoveCount: number
   afterMoveTerminal: boolean
-  openingSkipPlies: number
+  inOpeningBook: boolean
   preMoveExpected?: number
   wdlClauseEnabled: boolean
 }
 
 export function skipEvalReason(input: SkipEvalInput): SkipReason | null {
-  if (input.ply < input.openingSkipPlies) return 'opening'
   if (input.legalMoveCount <= 1) return 'forced'
   if (input.afterMoveTerminal) return 'terminal'
+  if (input.inOpeningBook) return 'opening'
   if (
     input.wdlClauseEnabled &&
     input.preMoveExpected !== undefined &&

@@ -2,94 +2,49 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../types/config'
 import { combineChannels, maybeDecoy, policyRatio, shouldSkipEval, skipEvalReason } from './freeze'
 
+const base = {
+  legalMoveCount: 20,
+  afterMoveTerminal: false,
+  inOpeningBook: false,
+  wdlClauseEnabled: false,
+}
+
 describe('freeze criterion', () => {
   it('names skip reasons', () => {
+    expect(skipEvalReason({ ...base, inOpeningBook: true })).toBe('opening')
+    expect(skipEvalReason({ ...base, legalMoveCount: 1 })).toBe('forced')
+    expect(skipEvalReason({ ...base, afterMoveTerminal: true })).toBe('terminal')
     expect(
       skipEvalReason({
-        ply: 4,
-        legalMoveCount: 20,
-        afterMoveTerminal: false,
-        openingSkipPlies: 12,
-        wdlClauseEnabled: false,
-      }),
-    ).toBe('opening')
-    expect(
-      skipEvalReason({
-        ply: 20,
-        legalMoveCount: 1,
-        afterMoveTerminal: false,
-        openingSkipPlies: 12,
-        wdlClauseEnabled: false,
-      }),
-    ).toBe('forced')
-    expect(
-      skipEvalReason({
-        ply: 20,
-        legalMoveCount: 20,
-        afterMoveTerminal: true,
-        openingSkipPlies: 12,
-        wdlClauseEnabled: false,
-      }),
-    ).toBe('terminal')
-    expect(
-      skipEvalReason({
-        ply: 20,
-        legalMoveCount: 20,
-        afterMoveTerminal: false,
-        openingSkipPlies: 12,
+        ...base,
         wdlClauseEnabled: true,
         preMoveExpected: 0.99,
       }),
     ).toBe('extreme-wdl')
   })
 
-  it('skips opening plies, single replies, and terminals', () => {
-    expect(
-      shouldSkipEval({
-        ply: 4,
-        legalMoveCount: 20,
-        afterMoveTerminal: false,
-        openingSkipPlies: 12,
-        wdlClauseEnabled: false,
-      }),
-    ).toBe(true)
-    expect(
-      shouldSkipEval({
-        ply: 20,
-        legalMoveCount: 1,
-        afterMoveTerminal: false,
-        openingSkipPlies: 12,
-        wdlClauseEnabled: false,
-      }),
-    ).toBe(true)
-    expect(
-      shouldSkipEval({
-        ply: 20,
-        legalMoveCount: 20,
-        afterMoveTerminal: true,
-        openingSkipPlies: 12,
-        wdlClauseEnabled: false,
-      }),
-    ).toBe(true)
+  it('skips in-book positions, single replies, and terminals', () => {
+    expect(shouldSkipEval({ ...base, inOpeningBook: true })).toBe(true)
+    expect(shouldSkipEval({ ...base, legalMoveCount: 1 })).toBe(true)
+    expect(shouldSkipEval({ ...base, afterMoveTerminal: true })).toBe(true)
+    expect(shouldSkipEval(base)).toBe(false)
+  })
+
+  it('does not skip out-of-book opening moves', () => {
+    expect(shouldSkipEval({ ...base, inOpeningBook: false })).toBe(false)
   })
 
   it('skips extreme WDL only when Channel B ran', () => {
     expect(
       shouldSkipEval({
-        ply: 20,
-        legalMoveCount: 20,
-        afterMoveTerminal: false,
-        openingSkipPlies: 12,
+        ...base,
         wdlClauseEnabled: true,
         preMoveExpected: 0.99,
       }),
     ).toBe(true)
     expect(
       shouldSkipEval({
-        ply: 20,
-        legalMoveCount: 20,
-        afterMoveTerminal: false,
-        openingSkipPlies: 12,
+        ...base,
         wdlClauseEnabled: false,
         preMoveExpected: 0.99,
       }),

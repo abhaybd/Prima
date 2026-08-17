@@ -25,6 +25,7 @@ import {
   type ClockState,
 } from '../lib/clocks'
 import { combineChannels, maybeDecoy, policyRatio, skipEvalReason } from '../lib/freeze'
+import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { moveProb, sampleMove, topMove } from '../lib/maia/decode'
 import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type EvalComment } from '../lib/pgn'
 import { isExtremeExpected, userPovExpected } from '../lib/wdl'
@@ -118,6 +119,7 @@ export function useGame() {
   const moveStartRef = useRef<number>(Date.now())
   const evaluatingRef = useRef(false)
   const evalCommentsRef = useRef<Map<number, string>>(new Map())
+  const bookRef = useRef<OpeningBook | null>(null)
   const freezeGraceEndsAtRef = useRef<number | null>(null)
 
   const setStatus = (status: PlayStatus) => {
@@ -433,10 +435,9 @@ export function useGame() {
 
       try {
         const skip = skipEvalReason({
-          ply,
           legalMoveCount: legal.length,
           afterMoveTerminal: terminalAfter,
-          openingSkipPlies: config.openingSkipPlies,
+          inOpeningBook: bookRef.current?.hasFen(chess.fen()) ?? false,
           wdlClauseEnabled: false,
         })
         const tau = {
@@ -678,6 +679,10 @@ export function useGame() {
     }))
     statusRef.current = 'loading'
     try {
+      const bookPromise = loadOpeningBook().catch((err) => {
+        console.warn(EVAL_LOG_PREFIX, 'opening book failed', err)
+        return null
+      })
       if (!maiaRef.current) maiaRef.current = createMaiaClient()
       await maiaRef.current.load(config.maiaVariant, (loaded, total) => {
         setState((s) => ({
@@ -701,6 +706,7 @@ export function useGame() {
         sfRef.current = null
       }
 
+      bookRef.current = await bookPromise
       const userColor = resolveUserColor(config.userColor)
       const chess = new Chess()
       chessRef.current = chess
@@ -713,7 +719,7 @@ export function useGame() {
       moveStartRef.current = Date.now()
       console.info(
         EVAL_LOG_PREFIX,
-        `game ${gameId} user=${userColor} tauR=${config.tauRatio} tauW=${config.tauWdl} wdlOn=${config.wdlClauseEnabled ? 'yes' : 'no'} skipPlies=${config.openingSkipPlies} thresholdElo=${config.thresholdElo} opponentElo=${config.opponentElo}`,
+        `game ${gameId} user=${userColor} tauR=${config.tauRatio} tauW=${config.tauWdl} wdlOn=${config.wdlClauseEnabled ? 'yes' : 'no'} book=${bookRef.current?.size ?? 0} thresholdElo=${config.thresholdElo} opponentElo=${config.opponentElo}`,
       )
       setState({
         status: 'playing',

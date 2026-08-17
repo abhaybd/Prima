@@ -64,7 +64,6 @@ export function mergeConfig(base: Config, patch: Partial<Config>): Config {
     freezeGraceSeconds: num(patch.freezeGraceSeconds, base.freezeGraceSeconds),
     decoyFreezeRate: num(patch.decoyFreezeRate, base.decoyFreezeRate),
     verdictGateMs: num(patch.verdictGateMs, base.verdictGateMs),
-    openingSkipPlies: num(patch.openingSkipPlies, base.openingSkipPlies),
     timeControl,
     sfMovetimeMs: num(patch.sfMovetimeMs, base.sfMovetimeMs),
     userColor: isUserColor(patch.userColor) ? patch.userColor : base.userColor,

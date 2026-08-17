@@ -21,7 +21,6 @@ export interface Config {
   freezeGraceSeconds: number
   decoyFreezeRate: number
   verdictGateMs: number
-  openingSkipPlies: number
   timeControl: TimeControl
   sfMovetimeMs: number
   userColor: UserColorPref
@@ -41,7 +40,6 @@ export const DEFAULT_CONFIG: Config = {
   freezeGraceSeconds: 3,
   decoyFreezeRate: 0.08,
   verdictGateMs: 250,
-  openingSkipPlies: 12,
   timeControl: { initial: 180, increment: 0 },
   sfMovetimeMs: 80,
   userColor: 'w',

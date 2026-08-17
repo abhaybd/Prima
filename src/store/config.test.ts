@@ -30,6 +30,24 @@ describe('config persistence', () => {
     expect(merged.thresholdElo).toBe(2000)
   })
 
+  it('drops the old openingSkipPlies setting', () => {
+    const memory = new Map<string, string>()
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: {
+        getItem: (k: string) => memory.get(k) ?? null,
+        setItem: (k: string, v: string) => memory.set(k, v),
+        removeItem: (k: string) => memory.delete(k),
+      },
+      configurable: true,
+    })
+    memory.set(
+      CONFIG_STORAGE_KEY,
+      JSON.stringify({ configVersion: 2, openingSkipPlies: 12, opponentElo: 1800 }),
+    )
+    expect(loadConfig()).not.toHaveProperty('openingSkipPlies')
+    expect(loadConfig().opponentElo).toBe(1800)
+  })
+
   it('accepts grace freeze clock mode', () => {
     const merged = mergeConfig(DEFAULT_CONFIG, { freezeClockMode: 'grace', freezeGraceSeconds: 3 })
     expect(merged.freezeClockMode).toBe('grace')

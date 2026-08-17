@@ -22,7 +22,7 @@ After you move, the app scores it on two channels:
 
 A freeze does not tell you *why*, or which channel fired. Real freezes and occasional **decoy** freezes look identical, so a freeze is not a free “this was a mistake” signal. Repeating the same move after a freeze is allowed; that is treated as confidence in the original choice. After several failed attempts the app reveals the engine move and the threshold policy’s top move, plays the engine move, and records a miss.
 
-Opening moves, forced-only-move positions, and already-decided games are not evaluated.
+Moves that stay in the opening book, forced-only-move positions, and already-decided games are not evaluated. Leaving the book is evaluated.
 
 ## Using the app
 
@@ -76,5 +76,6 @@ If this is hosted, AGPL §13 is satisfied by linking this repository (also in th
 
 - App: https://github.com/abhaybd/BlitzBrain
 - Stockfish (GPL-3.0): https://github.com/official-stockfish/Stockfish — wasm build [nmrugg/stockfish.js](https://github.com/nmrugg/stockfish.js)
+- Opening book: [official-stockfish/books](https://github.com/official-stockfish/books) `8moves_v3` (first 6 moves)
 - Maia-3 (AGPL-3.0): https://github.com/CSSLab/maia3
 - Browser ONNX export: https://huggingface.co/bqrio/maia3-onnx

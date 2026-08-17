@@ -41,7 +41,7 @@ describe('formatEvalComment', () => {
     expect(text).not.toMatch(/[{}]/)
   })
 
-  it('labels skipped opening plies', () => {
+  it('labels skipped opening-book moves', () => {
     const text = formatEvalComment({
       ply: 2,
       uci: 'g1f3',
