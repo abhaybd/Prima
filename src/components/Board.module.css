@@ -1,0 +1,4 @@
+.wrap {
+  width: min(72vh, 100%);
+  max-width: 640px;
+}

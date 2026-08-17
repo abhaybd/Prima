@@ -1,0 +1,9 @@
+node_modules
+dist
+*.local
+.DS_Store
+public/models/*.onnx
+public/models/*.ort
+public/ort/*.wasm
+public/ort/*.mjs
+.vite
