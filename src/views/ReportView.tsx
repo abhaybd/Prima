@@ -50,7 +50,7 @@ export function ReportView() {
       .then((rows) => {
         if (cancelled) return
         setMoves(rows)
-        setSelected(rows.find((m) => m.trigger !== 'none') ?? null)
+        setSelected(rows.find((m) => plyHadRealFreeze(m) || m.trigger === 'decoy') ?? null)
       })
       .catch(() => {})
     return () => {
@@ -83,15 +83,10 @@ export function ReportView() {
   const evaluated = moves.filter((m) => m.evaluated && m.trigger !== 'decoy')
   const freezes = evaluated.filter((m) => m.trigger !== 'none')
   const stats = useMemo(() => {
-    const by = (t: MoveRecord['trigger']) => freezes.filter((m) => m.trigger === t).length
     return {
       freezeCount: freezes.length,
-      ratio: by('ratio'),
-      wdl: by('wdl'),
-      both: by('both'),
       misses: evaluated.filter((m) => m.resolved === 'revealed').length,
       meanRetries: mean(freezes.map((m) => m.retries)),
-      meanWdl: mean(evaluated.map((m) => m.wdlDelta)),
       meanRatio: mean(evaluated.map((m) => m.ratio)),
       forcingRate:
         evaluated.filter((m) => m.isForcing).length === 0
@@ -130,10 +125,8 @@ export function ReportView() {
       </p>
       <div className={styles.stats}>
         <Stat label="Freezes" value={stats.freezeCount} />
-        <Stat label="Optimality / WDL / both" value={`${stats.ratio} / ${stats.wdl} / ${stats.both}`} />
         <Stat label="Misses" value={stats.misses} />
         <Stat label="Mean retries" value={fmt(stats.meanRetries)} />
-        <Stat label="Mean WDL Δ" value={fmt(stats.meanWdl)} />
         <Stat label="Mean optimality" value={formatOptimality(stats.meanRatio, 1)} />
         <Stat label="Forcing freeze rate" value={pct(stats.forcingRate)} />
         <Stat label="Quiet freeze rate" value={pct(stats.quietRate)} />
@@ -181,9 +174,7 @@ export function ReportView() {
               <tr>
                 <th>#</th>
                 <th>Move</th>
-                <th>Trigger</th>
                 <th>Optimality</th>
-                <th>WDL Δ</th>
                 <th>Retries</th>
               </tr>
             </thead>
@@ -192,11 +183,16 @@ export function ReportView() {
                 <tr
                   key={`${m.gameId}-${m.ply}`}
                   className={[
-                    plyHadRealFreeze(m) ? styles.freeze : '',
+                    plyHadRealFreeze(m) ? styles.freeze : m.trigger === 'decoy' ? styles.decoy : '',
                     selected?.ply === m.ply ? styles.sel : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
+                  title={
+                    m.trigger === 'decoy'
+                      ? 'Decoy: this move passed, but was frozen anyway so a freeze is not a free hint that the move was wrong.'
+                      : undefined
+                  }
                   onClick={() => setSelected(m)}
                 >
                   <td>{Math.floor(m.ply / 2) + 1}</td>
@@ -210,7 +206,6 @@ export function ReportView() {
                       ) : null}
                     </span>
                   </td>
-                  <td>{triggerLabel(m.trigger)}</td>
                   <td>
                     {m.evaluated ? (
                       <span className={styles.optimality}>
@@ -220,7 +215,6 @@ export function ReportView() {
                       '—'
                     )}
                   </td>
-                  <td>{m.evaluated ? m.wdlDelta.toFixed(3) : '—'}</td>
                   <td>{m.retries}</td>
                 </tr>
               ))}
@@ -243,14 +237,19 @@ export function ReportView() {
               <p>
                 Attempts: {sansFromUcis(selected.fen, selected.attempts) || '—'}
                 <br />
-                Engine best: {selected.sfBestMove ? uciToSan(selected.fen, selected.sfBestMove) : '—'}
-                <br />
+                {selected.sfBestMove ? (
+                  <>
+                    Engine best: {uciToSan(selected.fen, selected.sfBestMove)}
+                    <br />
+                  </>
+                ) : null}
                 Expert top move:{' '}
                 {selected.thresholdTopMove
                   ? uciToSan(selected.fen, selected.thresholdTopMove)
                   : '—'}
                 <br />
-                Trigger: {triggerLabel(selected.trigger)} · {selected.resolved}
+                {selected.trigger === 'decoy' ? 'Decoy · ' : ''}
+                {selected.resolved}
               </p>
             </>
           ) : (
@@ -277,12 +276,6 @@ function fmt(v: number | null): string {
 
 function pct(v: number | null): string {
   return v === null ? '—' : `${(v * 100).toFixed(1)}%`
-}
-
-function triggerLabel(trigger: MoveRecord['trigger']): string {
-  if (trigger === 'none') return '-'
-  if (trigger === 'ratio') return 'optimality'
-  return trigger
 }
 
 function sansFromUcis(fen: string, ucis: string[]): string {

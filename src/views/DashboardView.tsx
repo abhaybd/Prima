@@ -27,16 +27,16 @@ export function DashboardView() {
   }, [])
 
   const evaluated = moves.filter((m) => m.evaluated && m.trigger !== 'decoy')
-  const freezes = evaluated.filter((m) => m.trigger !== 'none')
-  const uniqueWdlRate =
-    freezes.length === 0 ? null : freezes.filter((m) => m.trigger === 'wdl').length / freezes.length
+  const freezeRate =
+    evaluated.length === 0
+      ? null
+      : evaluated.filter((m) => m.trigger !== 'none').length / evaluated.length
 
   const clockChart = CLOCK_BUCKETS.map((bucket) => {
     const rows = evaluated.filter((m) => clockBucket(m.clockRemainingMs) === bucket)
     const ratio = mean(rows.map((m) => m.ratio))
     return {
       bucket,
-      wdlDelta: mean(rows.map((m) => m.wdlDelta)),
       optimality: ratio === null ? null : ratio * 100,
       n: rows.length,
     }
@@ -71,9 +71,8 @@ export function DashboardView() {
       <h1>Dashboard</h1>
       <div className={styles.headline}>
         <div className="panel">
-          <div className="stat">{uniqueWdlRate === null ? '—' : `${(uniqueWdlRate * 100).toFixed(1)}%`}</div>
-          <div className="statLabel">Unique-WDL fire rate</div>
-          <p className="hint">Share of real freezes where only Stockfish fired. If this stays near zero, turn the WDL clause off.</p>
+          <div className="stat">{freezeRate === null ? '—' : `${(freezeRate * 100).toFixed(1)}%`}</div>
+          <div className="statLabel">Freeze rate</div>
         </div>
         <div className="panel">
           <div className="stat">{games.length}</div>
@@ -87,49 +86,25 @@ export function DashboardView() {
 
       <section className="panel">
         <h2>Quality versus remaining clock</h2>
-        <p className="hint">
-          Mean WDL drop (↓ better) and optimality (↑ better) by time left. Decoys excluded.
-        </p>
+        <p className="hint">Mean optimality (↑ better) by time left. Decoys excluded.</p>
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={clockChart} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
               <CartesianGrid stroke="#212830" />
               <XAxis dataKey="bucket" stroke="#8b98a5" />
               <YAxis
-                yAxisId="left"
-                stroke="#e5534b"
-                width={56}
-                label={{
-                  value: 'WDL Δ ↓',
-                  angle: -90,
-                  position: 'insideLeft',
-                  style: { fill: '#e5534b', fontSize: 12 },
-                }}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
                 stroke="#79b8ff"
                 width={72}
                 label={{
                   value: 'optimality % ↑',
-                  angle: 90,
-                  position: 'insideRight',
+                  angle: -90,
+                  position: 'insideLeft',
                   style: { fill: '#79b8ff', fontSize: 12 },
                 }}
               />
               <Tooltip formatter={formatChartTooltip} />
               <Legend />
               <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="wdlDelta"
-                name="mean WDL Δ (↓)"
-                stroke="#e5534b"
-                connectNulls
-              />
-              <Line
-                yAxisId="right"
                 type="monotone"
                 dataKey="optimality"
                 name="optimality (↑)"
@@ -187,7 +162,6 @@ function formatChartTooltip(
   item: { dataKey?: string | number },
 ): [string, string] {
   if (typeof value !== 'number') return ['—', name]
-  if (item.dataKey === 'wdlDelta') return [value.toFixed(4), name]
   if (item.dataKey === 'optimality') return [`${value.toFixed(1)}%`, name]
   return [String(value), name]
 }

@@ -71,6 +71,16 @@
   color: #111;
 }
 
+.decoy {
+  background: #f0c14b;
+  color: #111;
+}
+
+.decoy.sel {
+  background: #d4a017;
+  color: #111;
+}
+
 .mini {
   max-width: 320px;
 }
