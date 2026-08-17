@@ -28,16 +28,23 @@ export function WelcomeDialog() {
       <div className={styles.body}>
         <h2>Welcome to Prima</h2>
         <p>
-          A blitz trainer for acceptable play under time pressure, not engine-perfect moves. After
-          you move, the position may freeze if a stronger player would rarely choose it — undo and
-          try again.
+          Prima is short for <em>prima facie</em> — from first look — because it trains the kind of
+          chess you play when the clock is ticking: acceptable moves on sight, not engine-perfect
+          ones.
         </p>
         <p>
-          Further information is on the{' '}
+          You play blitz against a human-like bot. After each of your moves, the app asks whether a
+          stronger player would also choose it. If not, the position freezes — the move is undone,
+          and you try again. Freezes are meant to interrupt sloppy intuition, not to coach you
+          through the position.
+        </p>
+        <p>
+          The{' '}
           <Link to={debugHref('/about', debug)} onClick={close}>
             About
           </Link>{' '}
-          page.
+          page has the rest: how scoring works, why some freezes are decoys, and what stays on this
+          browser.
         </p>
         <div className={styles.actions}>
           <button type="button" onClick={close}>
