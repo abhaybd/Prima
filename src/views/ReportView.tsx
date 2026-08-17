@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Chessboard } from 'react-chessboard'
+import type { Square } from 'chess.js'
 import { getGame, getMovesForGame } from '../store/db'
 import { downloadText } from '../store/export'
 import { debugHref, useDebugMode } from '../lib/debug'
 import { pgnForDisplay } from '../lib/pgn'
 import { plyHadRealFreeze, ratioForAttempt } from '../lib/freeze'
 import type { GameRecord, MoveRecord } from '../types/game'
-import { applyUci, newChess, uciToSan } from '../lib/chess'
+import { applyUci, newChess, parseUci, uciToSan } from '../lib/chess'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { formatOptimality, mean } from '../lib/metrics'
 import styles from './ReportView.module.css'
@@ -224,6 +225,7 @@ export function ReportView() {
                   position={selected.fen}
                   arePiecesDraggable={false}
                   animationDuration={0}
+                  customArrows={replayArrows(selected)}
                   customDarkSquareStyle={{ backgroundColor: '#3d5a4c' }}
                   customLightSquareStyle={{ backgroundColor: '#e8eddf' }}
                 />
@@ -234,6 +236,10 @@ export function ReportView() {
                     Engine: {uciToSan(selected.fen, selected.sfBestMove)}
                   </p>
                 ) : null}
+                <p>
+                  Played:{' '}
+                  {selected.userMove ? uciToSan(selected.fen, selected.userMove) : '—'}
+                </p>
                 <p>
                   Expert:{' '}
                   {selected.thresholdTopMove
@@ -250,14 +256,23 @@ export function ReportView() {
                       </tr>
                     </thead>
                     <tbody>
-                      {selected.attempts.map((uci, i) => (
-                        <tr key={`${selected.ply}-${i}-${uci}`}>
-                          <td>{uciToSan(selected.fen, uci)}</td>
-                          <td>
-                            <OptimalityCell value={ratioForAttempt(selected, i)} />
-                          </td>
-                        </tr>
-                      ))}
+                      {selected.attempts.map((uci, i) => {
+                        const played = i === selected.attempts.lastIndexOf(selected.userMove)
+                        return (
+                          <tr
+                            key={`${selected.ply}-${i}-${uci}`}
+                            className={played ? styles.playedAttempt : undefined}
+                          >
+                            <td>
+                              {uciToSan(selected.fen, uci)}
+                              {played ? ' · played' : ''}
+                            </td>
+                            <td>
+                              <OptimalityCell value={ratioForAttempt(selected, i)} />
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 ) : (
@@ -265,7 +280,7 @@ export function ReportView() {
                 )}
                 <p>
                   {selected.trigger === 'decoy' ? 'Decoy · ' : ''}
-                  {selected.resolved}
+                  {selected.resolved === 'revealed' ? 'hint shown' : selected.resolved}
                 </p>
               </div>
             </>
@@ -293,6 +308,23 @@ function fmt(v: number | null): string {
 
 function pct(v: number | null): string {
   return v === null ? '—' : `${(v * 100).toFixed(1)}%`
+}
+
+function replayArrows(move: MoveRecord): [Square, Square, string][] {
+  const arrows: [Square, Square, string][] = []
+  const expert = arrowFromUci(move.thresholdTopMove, '#f0c14b')
+  if (expert) arrows.push(expert)
+  if (move.userMove && move.userMove !== move.thresholdTopMove) {
+    const played = arrowFromUci(move.userMove, '#6cb6ff')
+    if (played) arrows.push(played)
+  }
+  return arrows
+}
+
+function arrowFromUci(uci: string, color: string): [Square, Square, string] | null {
+  if (!uci || uci.length < 4) return null
+  const { from, to } = parseUci(uci)
+  return [from, to, color]
 }
 
 function OptimalityCell({ value }: { value: number | null }) {
