@@ -34,11 +34,11 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 **Two Maia conditionings** (same ONNX session, `elo_self` / `elo_oppo`):
 
 - Opponent (sample legal moves, never argmax): `elo_self = opponentElo`, `elo_oppo = opponentElo`
-- Threshold (full distribution): `elo_self = thresholdElo`, `elo_oppo = opponentElo`
+- Expert (full distribution): `elo_self = thresholdElo`, `elo_oppo = opponentElo`
 
-`thresholdElo` and `opponentElo` stay independent in the UI. There is no separate user Elo; the bot rating is used for both Maia opponent-policy inputs.
+`thresholdElo` (Expert Elo in the UI) and `opponentElo` stay independent. There is no separate user Elo; the bot rating is used for both Maia opponent-policy inputs. UI copy: Maia thresholding is the **expert**; Channel A `ratio` is **optimality** (percent). Stored fields and freeze triggers (`ratio`) stay as-is.
 
-**Channel A.** `ratio = P(m) / P(top)` after softmax over **legal** moves only. Ratio, not raw probability.
+**Channel A.** Optimality `ratio = P(m) / P(top)` after softmax over **legal** moves only. Ratio, not raw probability; show as a percent in the UI.
 
 **Channel B (provisional).** Two sequential searches, never MultiPV: `p` then `p+m`. `E = (W + 0.5*D) / 1000` from STM WDL. Convert both to user POV before subtracting: `wdlDelta = E_best_user − E_after_user`. After the user’s move, STM is the opponent, so negate. Lazy-init Stockfish only when `wdlClauseEnabled`. Keep Channel B a separable branch.
 

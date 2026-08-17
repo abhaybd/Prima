@@ -81,8 +81,8 @@ export function SettingsView() {
         <h2>Difficulty</h2>
         <div className={styles.grid}>
           <Field
-            label="Threshold Elo"
-            tip="Rating band your moves are scored against. Set it above the bot. This is not the bot's rating."
+            label="Expert Elo"
+            tip="Rating the expert uses when scoring your moves. Set it above the bot. This is not the bot's rating."
           >
             <input
               type="number"
@@ -91,14 +91,16 @@ export function SettingsView() {
             />
           </Field>
           <Field
-            label="Policy ratio τ"
-            tip="Freeze if Maia thinks your move is weaker than this fraction of its top choice. Lower is more permissive."
+            label="Min optimality (%)"
+            tip="Freeze if the expert rates your move below this percent of its top choice. Lower is more permissive."
           >
             <input
               type="number"
-              step="0.01"
-              value={config.tauRatio}
-              onChange={(e) => patch('tauRatio', Number(e.target.value))}
+              step="1"
+              min={0}
+              max={100}
+              value={Number((config.tauRatio * 100).toFixed(1))}
+              onChange={(e) => patch('tauRatio', Number(e.target.value) / 100)}
             />
           </Field>
           <Field
@@ -136,7 +138,7 @@ export function SettingsView() {
           </Field>
           <Field
             label="Maia model"
-            tip="Which Maia-3 network plays as the bot and scores your moves. 23M is default; 5M downloads less."
+            tip="Which Maia-3 network plays as the bot and as the expert scoring your moves. 23M is default; 5M downloads less."
           >
             <select
               value={config.maiaVariant}

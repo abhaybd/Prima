@@ -186,7 +186,7 @@ export function PlayView() {
         {state.freeze?.revealed ? (
           <p className="hint">
             Revealed {state.freeze.revealed.sfBest} (engine) / {state.freeze.revealed.thresholdTop}{' '}
-            (threshold)
+            (expert)
           </p>
         ) : null}
         <h3>Moves</h3>

@@ -9,7 +9,7 @@ import { plyHadRealFreeze } from '../lib/freeze'
 import type { GameRecord, MoveRecord } from '../types/game'
 import { applyUci, newChess, uciToSan } from '../lib/chess'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
-import { mean } from '../lib/metrics'
+import { formatOptimality, mean } from '../lib/metrics'
 import styles from './ReportView.module.css'
 
 export function ReportView() {
@@ -130,11 +130,11 @@ export function ReportView() {
       </p>
       <div className={styles.stats}>
         <Stat label="Freezes" value={stats.freezeCount} />
-        <Stat label="Ratio / WDL / both" value={`${stats.ratio} / ${stats.wdl} / ${stats.both}`} />
+        <Stat label="Optimality / WDL / both" value={`${stats.ratio} / ${stats.wdl} / ${stats.both}`} />
         <Stat label="Misses" value={stats.misses} />
         <Stat label="Mean retries" value={fmt(stats.meanRetries)} />
         <Stat label="Mean WDL Δ" value={fmt(stats.meanWdl)} />
-        <Stat label="Mean ratio" value={fmt(stats.meanRatio)} />
+        <Stat label="Mean optimality" value={formatOptimality(stats.meanRatio, 1)} />
         <Stat label="Forcing freeze rate" value={pct(stats.forcingRate)} />
         <Stat label="Quiet freeze rate" value={pct(stats.quietRate)} />
       </div>
@@ -182,7 +182,7 @@ export function ReportView() {
                 <th>#</th>
                 <th>Move</th>
                 <th>Trigger</th>
-                <th>Ratio</th>
+                <th>Optimality</th>
                 <th>WDL Δ</th>
                 <th>Retries</th>
               </tr>
@@ -210,8 +210,8 @@ export function ReportView() {
                       ) : null}
                     </span>
                   </td>
-                  <td>{m.trigger === 'none' ? '-' : m.trigger}</td>
-                  <td>{m.evaluated ? m.ratio.toFixed(2) : '—'}</td>
+                  <td>{triggerLabel(m.trigger)}</td>
+                  <td>{m.evaluated ? formatOptimality(m.ratio) : '—'}</td>
                   <td>{m.evaluated ? m.wdlDelta.toFixed(3) : '—'}</td>
                   <td>{m.retries}</td>
                 </tr>
@@ -237,12 +237,12 @@ export function ReportView() {
                 <br />
                 Engine best: {selected.sfBestMove ? uciToSan(selected.fen, selected.sfBestMove) : '—'}
                 <br />
-                Threshold top:{' '}
+                Expert top move:{' '}
                 {selected.thresholdTopMove
                   ? uciToSan(selected.fen, selected.thresholdTopMove)
                   : '—'}
                 <br />
-                Trigger: {selected.trigger === 'none' ? '-' : selected.trigger} · {selected.resolved}
+                Trigger: {triggerLabel(selected.trigger)} · {selected.resolved}
               </p>
             </>
           ) : (
@@ -269,6 +269,12 @@ function fmt(v: number | null): string {
 
 function pct(v: number | null): string {
   return v === null ? '—' : `${(v * 100).toFixed(1)}%`
+}
+
+function triggerLabel(trigger: MoveRecord['trigger']): string {
+  if (trigger === 'none') return '-'
+  if (trigger === 'ratio') return 'optimality'
+  return trigger
 }
 
 function sansFromUcis(fen: string, ucis: string[]): string {

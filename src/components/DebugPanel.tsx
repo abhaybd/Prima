@@ -42,8 +42,8 @@ export function DebugPanel({ meta, evals, notes }: Props) {
           <ul className={styles.chips}>
             <li>{meta.userColor === 'w' ? 'White' : 'Black'}</li>
             <li>Bot {meta.opponentElo}</li>
-            <li>Threshold {meta.thresholdElo}</li>
-            <li>τ_ratio {meta.tauRatio.toFixed(2)}</li>
+            <li>Expert {meta.thresholdElo}</li>
+            <li>min opt {(meta.tauRatio * 100).toFixed(0)}%</li>
             <li>τ_wdl {meta.wdlOn ? meta.tauWdl.toFixed(2) : 'off'}</li>
             <li>Book {meta.bookSize}</li>
           </ul>
@@ -111,7 +111,7 @@ function EvalDetail({
       </div>
 
       <div className={styles.channels}>
-        <ChannelLight letter="A" label="Policy ratio" fired={ratioFire} skipped={!!d.skipReason} />
+        <ChannelLight letter="A" label="Optimality" fired={ratioFire} skipped={!!d.skipReason} />
         <ChannelLight
           letter="B"
           label="WDL drop"
@@ -122,11 +122,11 @@ function EvalDetail({
       </div>
 
       <Meter
-        label="Channel A · P(move) / P(top)"
+        label="Channel A · optimality"
         value={d.ratio}
         tau={tauRatio}
         passIf="gte-tau"
-        format={(n) => n.toFixed(3)}
+        format={(n) => `${(n * 100).toFixed(0)}%`}
         empty={d.skipReason ? 'skipped' : undefined}
       />
       <Meter
@@ -142,7 +142,7 @@ function EvalDetail({
       {d.pMove !== undefined || d.pTop !== undefined ? (
         <div className={styles.policy}>
           <BarRow label="P(move)" value={d.pMove} max={Math.max(d.pTop ?? 0, d.pMove ?? 0, 0.01)} />
-          <BarRow label="P(top)" value={d.pTop} max={Math.max(d.pTop ?? 0, d.pMove ?? 0, 0.01)} />
+          <BarRow label="P(expert top)" value={d.pTop} max={Math.max(d.pTop ?? 0, d.pMove ?? 0, 0.01)} />
         </div>
       ) : null}
 
@@ -173,7 +173,7 @@ function EvalDetail({
           <dd>{d.uci}</dd>
         </div>
         <div>
-          <dt>Maia top</dt>
+          <dt>Expert top</dt>
           <dd>{d.thresholdTopMove || '—'}</dd>
         </div>
         <div>
@@ -333,7 +333,7 @@ function History({
               <span className={styles.histNums}>
                 {d.skipReason
                   ? d.skipReason
-                  : `r ${d.ratio?.toFixed(2) ?? '—'}  Δ ${d.wdlDelta?.toFixed(2) ?? '—'}`}
+                  : `opt ${d.ratio !== undefined ? `${(d.ratio * 100).toFixed(0)}%` : '—'}  Δ ${d.wdlDelta?.toFixed(2) ?? '—'}`}
               </span>
             </button>
           )

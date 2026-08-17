@@ -749,7 +749,7 @@ export function useGame() {
       freezeGraceEndsAtRef.current = null
       clocksRef.current = createClocks(config.timeControl.initial, Date.now())
       moveStartRef.current = Date.now()
-      const startLine = `game ${gameId} user=${userColor} tauR=${config.tauRatio} tauW=${config.tauWdl} wdlOn=${config.wdlClauseEnabled ? 'yes' : 'no'} book=${bookRef.current?.size ?? 0} thresholdElo=${config.thresholdElo} opponentElo=${config.opponentElo}`
+      const startLine = `game ${gameId} user=${userColor} minOpt=${(config.tauRatio * 100).toFixed(0)}% tauW=${config.tauWdl} wdlOn=${config.wdlClauseEnabled ? 'yes' : 'no'} book=${bookRef.current?.size ?? 0} expertElo=${config.thresholdElo} opponentElo=${config.opponentElo}`
       console.info(EVAL_LOG_PREFIX, startLine)
       const debugMeta: DebugGameMeta = {
         gameId,

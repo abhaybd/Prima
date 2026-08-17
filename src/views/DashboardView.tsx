@@ -13,7 +13,7 @@ import {
 import { getAllGames, getAllMoves } from '../store/db'
 import type { GameRecord, MoveRecord } from '../types/game'
 import { debugHref, useDebugMode } from '../lib/debug'
-import { CLOCK_BUCKETS, clockBucket, mean } from '../lib/metrics'
+import { CLOCK_BUCKETS, clockBucket, formatOptimality, mean } from '../lib/metrics'
 import styles from './DashboardView.module.css'
 
 export function DashboardView() {
@@ -33,10 +33,11 @@ export function DashboardView() {
 
   const clockChart = CLOCK_BUCKETS.map((bucket) => {
     const rows = evaluated.filter((m) => clockBucket(m.clockRemainingMs) === bucket)
+    const ratio = mean(rows.map((m) => m.ratio))
     return {
       bucket,
       wdlDelta: mean(rows.map((m) => m.wdlDelta)),
-      ratio: mean(rows.map((m) => m.ratio)),
+      optimality: ratio === null ? null : ratio * 100,
       n: rows.length,
     }
   })
@@ -87,8 +88,7 @@ export function DashboardView() {
       <section className="panel">
         <h2>Quality versus remaining clock</h2>
         <p className="hint">
-          Mean WDL drop (↓ better) and move probability ratio (↑ better) by time left. Decoys
-          excluded.
+          Mean WDL drop (↓ better) and optimality (↑ better) by time left. Decoys excluded.
         </p>
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height={320}>
@@ -112,7 +112,7 @@ export function DashboardView() {
                 stroke="#79b8ff"
                 width={72}
                 label={{
-                  value: 'move probability ratio ↑',
+                  value: 'optimality % ↑',
                   angle: 90,
                   position: 'insideRight',
                   style: { fill: '#79b8ff', fontSize: 12 },
@@ -131,8 +131,8 @@ export function DashboardView() {
               <Line
                 yAxisId="right"
                 type="monotone"
-                dataKey="ratio"
-                name="move probability ratio (↑)"
+                dataKey="optimality"
+                name="optimality (↑)"
                 stroke="#79b8ff"
                 connectNulls
               />
@@ -154,12 +154,12 @@ export function DashboardView() {
 
       <section className="panel">
         <h2>Freeze rate over time</h2>
-        <p className="hint">Per game, at that game&apos;s τ_ratio.</p>
+        <p className="hint">Per game, at that game&apos;s min optimality.</p>
         <ul>
           {trend.map((row) => (
             <li key={row.startedAt}>
-              {new Date(row.startedAt).toLocaleString()} · τ={row.tau} ·{' '}
-              {(row.rate * 100).toFixed(1)}%
+              {new Date(row.startedAt).toLocaleString()} · min optimality{' '}
+              {formatOptimality(row.tau)} · {(row.rate * 100).toFixed(1)}%
             </li>
           ))}
         </ul>
@@ -188,6 +188,6 @@ function formatChartTooltip(
 ): [string, string] {
   if (typeof value !== 'number') return ['—', name]
   if (item.dataKey === 'wdlDelta') return [value.toFixed(4), name]
-  if (item.dataKey === 'ratio') return [value.toFixed(3), name]
+  if (item.dataKey === 'optimality') return [`${value.toFixed(1)}%`, name]
   return [String(value), name]
 }

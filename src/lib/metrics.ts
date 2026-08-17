@@ -23,3 +23,9 @@ export function mean(values: number[]): number | null {
   if (values.length === 0) return null
   return values.reduce((a, b) => a + b, 0) / values.length
 }
+
+/** Channel A ratio P(played)/P(expert top), shown as a percent. */
+export function formatOptimality(ratio: number | null, digits = 0): string {
+  if (ratio === null) return '—'
+  return `${(ratio * 100).toFixed(digits)}%`
+}
