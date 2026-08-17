@@ -101,6 +101,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+.optimality {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.optimalityNum {
+  min-width: 3ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .moveCell {
   display: inline-flex;
   align-items: center;

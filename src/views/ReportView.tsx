@@ -211,7 +211,15 @@ export function ReportView() {
                     </span>
                   </td>
                   <td>{triggerLabel(m.trigger)}</td>
-                  <td>{m.evaluated ? formatOptimality(m.ratio) : '—'}</td>
+                  <td>
+                    {m.evaluated ? (
+                      <span className={styles.optimality}>
+                        <span className={styles.optimalityNum}>{(m.ratio * 100).toFixed(0)}</span>%
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td>{m.evaluated ? m.wdlDelta.toFixed(3) : '—'}</td>
                   <td>{m.retries}</td>
                 </tr>
