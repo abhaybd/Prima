@@ -12,10 +12,12 @@ import {
 } from 'recharts'
 import { getAllGames, getAllMoves } from '../store/db'
 import type { GameRecord, MoveRecord } from '../types/game'
+import { debugHref, useDebugMode } from '../lib/debug'
 import { CLOCK_BUCKETS, clockBucket, mean } from '../lib/metrics'
 import styles from './DashboardView.module.css'
 
 export function DashboardView() {
+  const debug = useDebugMode()
   const [games, setGames] = useState<GameRecord[]>([])
   const [moves, setMoves] = useState<MoveRecord[]>([])
 
@@ -130,7 +132,7 @@ export function DashboardView() {
         <ul>
           {games.map((g) => (
             <li key={g.gameId}>
-              <Link to={`/report/${g.gameId}`}>
+              <Link to={debugHref(`/report/${g.gameId}`, debug)}>
                 {new Date(g.startedAt).toLocaleString()} · {g.result}
               </Link>
             </li>

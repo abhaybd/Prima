@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatEvalComment, pgnWithEvalComments } from './pgn'
+import { formatEvalComment, pgnForDisplay, pgnWithEvalComments, pgnWithoutComments } from './pgn'
 
 describe('formatEvalComment', () => {
   it('includes Maia likelihood, WDL, and delta without braces', () => {
@@ -66,5 +66,32 @@ describe('pgnWithEvalComments', () => {
     expect(pgn).toMatch(/1\.\s*e4 \{p=0\.5000 ratio=1\.000 trig=none freeze=no\}/)
     expect(pgn).toMatch(/e5(?!\s*\{)/)
     expect(pgn).toMatch(/Nf3 \{skip=opening eval=no trig=none freeze=no\}/)
+  })
+})
+
+describe('pgnWithoutComments', () => {
+  it('strips eval comments while keeping moves and headers', () => {
+    const comments = new Map([
+      [0, 'p=0.5000 ratio=1.000 trig=none freeze=no'],
+      [2, 'skip=opening eval=no trig=none freeze=no'],
+    ])
+    const pgn = pgnWithEvalComments(['e4', 'e5', 'Nf3'], comments, { Result: '*' })
+    const clean = pgnWithoutComments(pgn)
+    expect(clean).toContain('[Result "*"]')
+    expect(clean).toMatch(/1\.\s*e4/)
+    expect(clean).toContain('e5')
+    expect(clean).toContain('Nf3')
+    expect(clean).not.toMatch(/\{/)
+    expect(clean).not.toContain('trig=none')
+  })
+})
+
+describe('pgnForDisplay', () => {
+  it('keeps comments in debug mode and strips them otherwise', () => {
+    const comments = new Map([[0, 'trig=ratio freeze=yes']])
+    const pgn = pgnWithEvalComments(['e4'], comments, { Result: '*' })
+    expect(pgnForDisplay(pgn, true)).toBe(pgn)
+    expect(pgnForDisplay(pgn, false)).not.toContain('trig=ratio')
+    expect(pgnForDisplay(pgn, false)).toMatch(/1\.\s*e4/)
   })
 })

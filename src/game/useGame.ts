@@ -34,6 +34,7 @@ import { loadConfig } from '../store/config'
 import { putGame, putMove } from '../store/db'
 import { DEFAULT_CONFIG, type Color, type Config, type TimeControl } from '../types/config'
 import type { FreezeTrigger, GameRecord, MoveRecord, MoveResolved } from '../types/game'
+import type { DebugGameMeta } from '../lib/debug'
 
 export type PlayStatus =
   | 'idle'
@@ -84,6 +85,9 @@ export interface PlayState {
   error: string | null
   loadProgress: LoadProgress | null
   gameId: string | null
+  debugMeta: DebugGameMeta | null
+  debugEvals: EvalComment[]
+  debugNotes: string[]
 }
 
 const initialState = (): PlayState => ({
@@ -101,6 +105,9 @@ const initialState = (): PlayState => ({
   error: null,
   loadProgress: null,
   gameId: null,
+  debugMeta: null,
+  debugEvals: [],
+  debugNotes: [],
 })
 
 function delay(ms: number): Promise<void> {
@@ -122,8 +129,17 @@ export function useGame() {
   const moveStartRef = useRef<number>(Date.now())
   const evaluatingRef = useRef(false)
   const evalCommentsRef = useRef<Map<number, string>>(new Map())
+  const debugEvalsRef = useRef<EvalComment[]>([])
+  const debugNotesRef = useRef<string[]>([])
   const bookRef = useRef<OpeningBook | null>(null)
   const freezeGraceEndsAtRef = useRef<number | null>(null)
+
+  const logEval = (d: EvalComment): string => {
+    const text = logEvalComment(d)
+    debugEvalsRef.current = [...debugEvalsRef.current, d]
+    setState((s) => ({ ...s, debugEvals: debugEvalsRef.current }))
+    return text
+  }
 
   const setStatus = (status: PlayStatus) => {
     statusRef.current = status
@@ -253,7 +269,7 @@ export function useGame() {
       const retries = Math.max(0, attempts.length - 1)
       const ply = pending.ply
       if (extras.evalComment) {
-        const text = logEvalComment({
+        const text = logEval({
           ...extras.evalComment,
           ply,
           uci,
@@ -634,7 +650,7 @@ export function useGame() {
             pending.decoyActive = decoy && !channel.freeze
             if (decoy && !channel.freeze) pending.originalMove = pending.originalMove ?? uci
           }
-          logEvalComment({
+          logEval({
             ...evalComment,
             attempts: pending?.attempts,
             retries: Math.max(0, (pending?.attempts.length ?? 1) - 1),
@@ -684,9 +700,15 @@ export function useGame() {
       gameId: s.gameId,
     }))
     statusRef.current = 'loading'
+    debugEvalsRef.current = []
+    debugNotesRef.current = []
     try {
       const bookPromise = loadOpeningBook().catch((err) => {
         console.warn(EVAL_LOG_PREFIX, 'opening book failed', err)
+        debugNotesRef.current = [
+          ...debugNotesRef.current,
+          `opening book failed ${err instanceof Error ? err.message : String(err)}`,
+        ]
         return null
       })
       if (!maiaRef.current) maiaRef.current = createMaiaClient()
@@ -723,10 +745,18 @@ export function useGame() {
       freezeGraceEndsAtRef.current = null
       clocksRef.current = createClocks(config.timeControl.initial, Date.now())
       moveStartRef.current = Date.now()
-      console.info(
-        EVAL_LOG_PREFIX,
-        `game ${gameId} user=${userColor} tauR=${config.tauRatio} tauW=${config.tauWdl} wdlOn=${config.wdlClauseEnabled ? 'yes' : 'no'} book=${bookRef.current?.size ?? 0} thresholdElo=${config.thresholdElo} opponentElo=${config.opponentElo}`,
-      )
+      const startLine = `game ${gameId} user=${userColor} tauR=${config.tauRatio} tauW=${config.tauWdl} wdlOn=${config.wdlClauseEnabled ? 'yes' : 'no'} book=${bookRef.current?.size ?? 0} thresholdElo=${config.thresholdElo} opponentElo=${config.opponentElo}`
+      console.info(EVAL_LOG_PREFIX, startLine)
+      const debugMeta: DebugGameMeta = {
+        gameId,
+        userColor,
+        tauRatio: config.tauRatio,
+        tauWdl: config.tauWdl,
+        wdlOn: config.wdlClauseEnabled,
+        bookSize: bookRef.current?.size ?? 0,
+        thresholdElo: config.thresholdElo,
+        opponentElo: config.opponentElo,
+      }
       setState({
         status: 'playing',
         fen: chess.fen(),
@@ -742,6 +772,9 @@ export function useGame() {
         error: null,
         loadProgress: null,
         gameId,
+        debugMeta,
+        debugEvals: [],
+        debugNotes: debugNotesRef.current,
       })
       statusRef.current = 'playing'
       if (chess.turn() !== userColor) {
@@ -756,11 +789,14 @@ export function useGame() {
       maiaRef.current = null
       sfRef.current?.terminate()
       sfRef.current = null
+      const message = err instanceof Error ? err.message : String(err)
+      debugNotesRef.current = [...debugNotesRef.current, message]
       setState((s) => ({
         ...s,
         status: 'idle',
-        error: err instanceof Error ? err.message : String(err),
+        error: message,
         loadProgress: null,
+        debugNotes: debugNotesRef.current,
       }))
     }
   }, [playOpponent])

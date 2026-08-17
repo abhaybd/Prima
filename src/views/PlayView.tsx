@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Board } from '../components/Board'
 import { Clocks } from '../components/Clocks'
+import { DebugPanel } from '../components/DebugPanel'
 import { FreezeOverlay } from '../components/FreezeOverlay'
 import { MoveList } from '../components/MoveList'
 import { useGame } from '../game/useGame'
+import { debugHref, useDebugMode } from '../lib/debug'
 import { loadConfig, mergeConfig, saveConfig } from '../store/config'
 import type { TimeControl, UserColorPref } from '../types/config'
 import styles from './PlayView.module.css'
@@ -62,6 +64,7 @@ function matchingTimePreset(tc: TimeControl): string {
 
 export function PlayView() {
   const { state, startGame, onDrop } = useGame()
+  const debug = useDebugMode()
   const navigate = useNavigate()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState<PlayPrefs>(loadPlayPrefs)
@@ -131,7 +134,7 @@ export function PlayView() {
             <button
               type="button"
               className="secondary"
-              onClick={() => navigate(`/report/${state.gameId}`)}
+              onClick={() => navigate(debugHref(`/report/${state.gameId}`, debug))}
             >
               View report
             </button>
@@ -189,6 +192,9 @@ export function PlayView() {
         <h3>Moves</h3>
         <MoveList sans={state.sanMoves} />
       </aside>
+      {debug ? (
+        <DebugPanel meta={state.debugMeta} evals={state.debugEvals} notes={state.debugNotes} />
+      ) : null}
 
       <dialog ref={dialogRef} className={styles.dialog}>
         <form

@@ -1,21 +1,24 @@
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
+import { debugHref, useDebugMode } from '../lib/debug'
 import { Credits } from './Credits'
 import styles from './Layout.module.css'
 
 export function Layout({ children }: { children: ReactNode }) {
+  const debug = useDebugMode()
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
-        <NavLink to="/" className={styles.brand}>
+        <NavLink to={debugHref('/', debug)} className={styles.brand}>
           Blitz Freeze Drill
+          {debug ? <span className={styles.debugBadge}>DEBUG</span> : null}
         </NavLink>
         <nav className={styles.nav}>
-          <NavLink to="/" end>
+          <NavLink to={debugHref('/', debug)} end>
             Play
           </NavLink>
-          <NavLink to="/dashboard">Dashboard</NavLink>
-          <NavLink to="/settings">Settings</NavLink>
+          <NavLink to={debugHref('/dashboard', debug)}>Dashboard</NavLink>
+          <NavLink to={debugHref('/settings', debug)}>Settings</NavLink>
         </nav>
       </header>
       <main className={styles.main}>{children}</main>

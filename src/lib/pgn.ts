@@ -82,6 +82,22 @@ export function pgnWithEvalComments(
   return chess.pgn()
 }
 
+/** Drop `{…}` eval comments so the PGN is importable without debug noise. */
+export function pgnWithoutComments(pgn: string): string {
+  const chess = new Chess()
+  try {
+    chess.loadPgn(pgn)
+    chess.removeComments()
+    return chess.pgn()
+  } catch {
+    return pgn.replace(/\{[^}]*\}/g, '').replace(/[ \t]{2,}/g, ' ').trim()
+  }
+}
+
+export function pgnForDisplay(pgn: string, debug: boolean): string {
+  return debug ? pgn : pgnWithoutComments(pgn)
+}
+
 export function logEvalComment(d: EvalComment): string {
   const text = formatEvalComment(d)
   console.info(EVAL_LOG_PREFIX, text)

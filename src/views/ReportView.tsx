@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Chessboard } from 'react-chessboard'
 import { getGame, getMovesForGame } from '../store/db'
+import { downloadText } from '../store/export'
+import { debugHref, useDebugMode } from '../lib/debug'
+import { pgnForDisplay } from '../lib/pgn'
 import type { GameRecord, MoveRecord } from '../types/game'
 import { mean } from '../lib/metrics'
 import styles from './ReportView.module.css'
 
 export function ReportView() {
   const { gameId } = useParams()
+  const debug = useDebugMode()
   const [game, setGame] = useState<GameRecord | undefined>()
   const [moves, setMoves] = useState<MoveRecord[]>([])
   const [selected, setSelected] = useState<MoveRecord | null>(null)
@@ -74,6 +78,8 @@ export function ReportView() {
     }
   }, [evaluated, freezes])
 
+  const pgn = game?.pgn ? pgnForDisplay(game.pgn, debug) : ''
+
   if (loadState === 'not-found') {
     return (
       <div className={styles.notFound}>
@@ -91,7 +97,7 @@ export function ReportView() {
       <h1>Game report</h1>
       <p className="hint">
         {game.result} · you were {game.userColor === 'w' ? 'White' : 'Black'} ·{' '}
-        <Link to="/dashboard">Dashboard</Link>
+        <Link to={debugHref('/dashboard', debug)}>Dashboard</Link>
       </p>
       <div className={styles.stats}>
         <Stat label="Freezes" value={stats.freezeCount} />
@@ -103,10 +109,25 @@ export function ReportView() {
         <Stat label="Forcing freeze rate" value={pct(stats.forcingRate)} />
         <Stat label="Quiet freeze rate" value={pct(stats.quietRate)} />
       </div>
-      {game.pgn ? (
+      {pgn ? (
         <div className="panel">
-          <h2>PGN</h2>
-          <pre className={styles.pgn}>{game.pgn}</pre>
+          <div className={styles.pgnHead}>
+            <h2>PGN</h2>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                downloadText(
+                  `blitzdrill-${game.gameId}.pgn`,
+                  pgn,
+                  'application/x-chess-pgn',
+                )
+              }
+            >
+              Download
+            </button>
+          </div>
+          <pre className={styles.pgn}>{pgn}</pre>
         </div>
       ) : null}
       <div className={styles.split}>
