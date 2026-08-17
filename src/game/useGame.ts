@@ -1,6 +1,7 @@
 import { Chess } from 'chess.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createMaiaClient, type MaiaClient } from '../engine/maiaClient'
+import { createStockfishClient, type StockfishClient } from '../engine/stockfishClient'
 import {
   applyUci,
   isForcingMove,
@@ -31,7 +32,7 @@ import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type 
 import { loadConfig } from '../store/config'
 import { putGame, putMove } from '../store/db'
 import { DEFAULT_CONFIG, type Color, type Config, type TimeControl } from '../types/config'
-import type { FreezeTrigger, GameRecord, MoveRecord, MoveResolved } from '../types/game'
+import type { FreezeTrigger, GameRecord, MoveRecord, MoveResolved, SfEvalPoint } from '../types/game'
 import type { DebugGameMeta } from '../lib/debug'
 
 export type PlayStatus =
@@ -126,6 +127,11 @@ export function useGame() {
   const chessRef = useRef(new Chess())
   const configRef = useRef<Config>(loadConfig())
   const maiaRef = useRef<MaiaClient | null>(null)
+  const sfRef = useRef<StockfishClient | null>(null)
+  const sfGenRef = useRef(0)
+  const sfEvalsRef = useRef<SfEvalPoint[]>([])
+  const sfPendingRef = useRef<Promise<void>[]>([])
+  const savedMovesRef = useRef<Map<number, MoveRecord>>(new Map())
   const pendingRef = useRef<PendingPly | null>(null)
   const gameMetaRef = useRef<{ gameId: string; startedAt: number; userColor: Color } | null>(
     null,
@@ -145,6 +151,41 @@ export function useGame() {
     debugEvalsRef.current = [...debugEvalsRef.current, d]
     setState((s) => ({ ...s, debugEvals: debugEvalsRef.current }))
     return text
+  }
+
+  const queueSfEval = (ply: number, fenAfter: string, isUserPly: boolean) => {
+    const sf = sfRef.current
+    if (!sf) return
+    const gen = sfGenRef.current
+    const gameId = gameMetaRef.current?.gameId
+    const task = sf
+      .evaluate(fenAfter)
+      .then(async (ev) => {
+        if (sfGenRef.current !== gen || gameMetaRef.current?.gameId !== gameId) return
+        const point: SfEvalPoint = { ply, pawns: ev.pawns }
+        if (ev.mate != null) point.mate = ev.mate
+        sfEvalsRef.current = [...sfEvalsRef.current.filter((p) => p.ply !== ply), point].sort(
+          (a, b) => a.ply - b.ply,
+        )
+        if (!isUserPly) return
+        const prev = savedMovesRef.current.get(ply)
+        if (!prev) return
+        const updated: MoveRecord = { ...prev, sfEval: point.pawns }
+        if (point.mate != null) updated.sfMate = point.mate
+        savedMovesRef.current.set(ply, updated)
+        await putMove(updated)
+      })
+      .catch((err) => {
+        console.warn(EVAL_LOG_PREFIX, 'stockfish eval failed', err)
+      })
+    sfPendingRef.current.push(task)
+  }
+
+  const flushSfEvals = async (): Promise<SfEvalPoint[]> => {
+    const pending = sfPendingRef.current
+    sfPendingRef.current = []
+    if (pending.length) await Promise.allSettled(pending)
+    return [...sfEvalsRef.current].sort((a, b) => a.ply - b.ply)
   }
 
   const setStatus = (status: PlayStatus) => {
@@ -200,6 +241,8 @@ export function useGame() {
       userColor: meta.userColor,
     }
     await putGame(record)
+    const sfEvals = await flushSfEvals()
+    if (sfEvals.length > 0) await putGame({ ...record, sfEvals })
   }, [])
 
   const playOpponent = useCallback(async () => {
@@ -225,6 +268,7 @@ export function useGame() {
     const { policy } = await maia.policy(chess.fen(), config.opponentElo, config.opponentElo)
     const uci = sampleMove(policy)
     applyUci(chess, uci)
+    queueSfEval(chess.history().length - 1, chess.fen(), false)
     clocksRef.current = applyIncrement(
       clocksRef.current,
       meta.userColor === 'w' ? 'b' : 'w',
@@ -291,7 +335,7 @@ export function useGame() {
         })
         evalCommentsRef.current.set(ply, text)
       }
-      await recordMove({
+      const move: MoveRecord = {
         gameId: meta.gameId,
         ply,
         fen: pending.fenBefore,
@@ -311,7 +355,10 @@ export function useGame() {
         phase: phaseOf(pending.fenBefore, ply),
         evaluated: extras.evaluated,
         hadRealFreeze,
-      })
+      }
+      await recordMove(move)
+      savedMovesRef.current.set(ply, move)
+      queueSfEval(ply, chess.fen(), true)
       if (pending.didFreeze && config.freezeClockMode === 'penalty') {
         const deducted = deductMs(
           clocksRef.current,
@@ -667,6 +714,13 @@ export function useGame() {
     statusRef.current = 'loading'
     debugEvalsRef.current = []
     debugNotesRef.current = []
+    sfGenRef.current += 1
+    sfEvalsRef.current = []
+    savedMovesRef.current = new Map()
+    if (!sfRef.current) {
+      sfRef.current = createStockfishClient()
+      void sfRef.current.evaluate(new Chess().fen()).catch(() => {})
+    }
     try {
       const bookPromise = loadOpeningBook().catch((err) => {
         console.warn(EVAL_LOG_PREFIX, 'opening book failed', err)
@@ -739,6 +793,8 @@ export function useGame() {
     } catch (err) {
       maiaRef.current?.terminate()
       maiaRef.current = null
+      sfRef.current?.terminate()
+      sfRef.current = null
       const message = err instanceof Error ? err.message : String(err)
       debugNotesRef.current = [...debugNotesRef.current, message]
       setState((s) => ({
@@ -794,6 +850,7 @@ export function useGame() {
   useEffect(() => {
     return () => {
       maiaRef.current?.terminate()
+      sfRef.current?.terminate()
     }
   }, [])
 

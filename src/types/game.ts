@@ -5,6 +5,16 @@ export type FreezeTrigger = 'none' | 'ratio' | 'wdl' | 'both' | 'decoy'
 export type MoveResolved = 'accepted' | 'revealed'
 export type GamePhase = 'opening' | 'middlegame' | 'endgame'
 
+/** White POV. `pawns` is always centipawns/100; `mate` is set only when SF reported mate. */
+export interface SfEval {
+  pawns: number
+  mate?: number
+}
+
+export interface SfEvalPoint extends SfEval {
+  ply: number
+}
+
 export interface GameRecord {
   gameId: string
   startedAt: number
@@ -13,6 +23,8 @@ export interface GameRecord {
   pgn: string
   result: GameResult
   userColor: Color
+  /** Eval after each committed ply (user and opponent), White POV. Absent on older games. */
+  sfEvals?: SfEvalPoint[]
 }
 
 export interface MoveRecord {
@@ -26,6 +38,10 @@ export interface MoveRecord {
   ratio: number
   wdlDelta: number
   sfBestMove: string
+  /** White POV pawns after this user move. Absent until Stockfish finishes, and on older records. */
+  sfEval?: number
+  /** White POV mate-in-N after this user move, when Stockfish reported mate. */
+  sfMate?: number
   thresholdTopMove: string
   trigger: FreezeTrigger
   retries: number

@@ -1,22 +1,21 @@
-import { parseBestMove, parseWdl, type Wdl } from '../lib/wdl'
+import { parseBestMove } from '../lib/wdl'
+import { evalFromInfoLines, sideToMoveFromFen } from '../lib/sfEval'
+import type { SfEval } from '../types/game'
 
-export interface SfEvaluation {
+export const SF_MOVETIME_MS = 100
+const SF_WORKER_URL = '/engines/stockfish-18-lite-single.js'
+
+export interface SfEvaluation extends SfEval {
   bestMove: string
-  wdl: Wdl
-  stmExpected: number
 }
 
 export interface StockfishClient {
-  evaluate(fen: string, movetimeMs: number): Promise<SfEvaluation>
+  evaluate(fen: string, movetimeMs?: number): Promise<SfEvaluation>
   terminate(): void
 }
 
-function expectedScore(wdl: Wdl): number {
-  return (wdl.w + 0.5 * wdl.d) / 1000
-}
-
 export function createStockfishClient(): StockfishClient {
-  const worker = new Worker('/engines/stockfish-18-lite-single.js')
+  const worker = new Worker(SF_WORKER_URL)
   let ready: Promise<void> | null = null
   let chain: Promise<unknown> = Promise.resolve()
 
@@ -49,7 +48,6 @@ export function createStockfishClient(): StockfishClient {
       ready = (async () => {
         send('uci')
         await waitFor((l) => l.trim() === 'uciok')
-        send('setoption name UCI_ShowWDL value true')
         send('setoption name Hash value 16')
         send('isready')
         await waitFor((l) => l.trim() === 'readyok')
@@ -58,20 +56,15 @@ export function createStockfishClient(): StockfishClient {
     return ready
   }
 
-  async function evaluate(fen: string, movetimeMs: number): Promise<SfEvaluation> {
+  async function evaluate(fen: string, movetimeMs = SF_MOVETIME_MS): Promise<SfEvaluation> {
     const run = async (): Promise<SfEvaluation> => {
       await init()
       send(`position fen ${fen}`)
       send(`go movetime ${movetimeMs}`)
       const lines = await waitFor((l) => l.startsWith('bestmove'), Math.max(5000, movetimeMs + 4000))
-      let wdl: Wdl | null = null
-      for (const line of lines) {
-        const parsed = parseWdl(line)
-        if (parsed) wdl = parsed
-      }
+      const score = evalFromInfoLines(lines, sideToMoveFromFen(fen))
       const bestMove = parseBestMove(lines[lines.length - 1] ?? '') ?? ''
-      if (!wdl) wdl = { w: 333, d: 334, l: 333 }
-      return { bestMove, wdl, stmExpected: expectedScore(wdl) }
+      return { bestMove, ...score }
     }
 
     const next = chain.then(run, run)
