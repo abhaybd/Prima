@@ -1,20 +1,24 @@
 import { Chessboard } from 'react-chessboard'
+import { parseUci } from '../lib/chess'
 import styles from './Board.module.css'
 
 interface Props {
   fen: string
   orientation: 'white' | 'black'
   interactive: boolean
+  hintUci?: string | null
   onMove: (from: string, to: string, promotion?: string) => boolean
 }
 
-export function Board({ fen, orientation, interactive, onMove }: Props) {
+export function Board({ fen, orientation, interactive, hintUci, onMove }: Props) {
+  const hint = hintUci ? parseUci(hintUci) : null
   return (
     <div className={styles.wrap}>
       <Chessboard
         position={fen}
         boardOrientation={orientation}
         arePiecesDraggable={interactive}
+        customArrows={hint ? [[hint.from, hint.to, '#f0c14b']] : []}
         onPieceDrop={(source, target) => {
           if (!interactive) return false
           return onMove(source, target)

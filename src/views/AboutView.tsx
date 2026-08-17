@@ -36,8 +36,8 @@ export function AboutView() {
           A freeze does not tell you <em>why</em>. Real freezes and occasional <strong>decoy</strong>{' '}
           freezes look identical, so a freeze is not a free “this was a mistake” signal. Repeating
           the same move after a freeze is allowed; that is treated as confidence in the original
-          choice. After several failed attempts the app reveals the expert’s top move, plays it,
-          and records a miss.
+          choice. After several failed attempts the app reveals the expert’s top move as an
+          arrow. You can play that move or any other; the ply is still recorded as a miss.
         </p>
         <p>
           Moves that stay in the opening book, forced-only-move positions, and already-decided

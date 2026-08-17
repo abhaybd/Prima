@@ -25,7 +25,7 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 ## Invariants
 
-**Freeze overlay.** Identical for real and decoy freezes. No evals, no channel, no hints during play. Reveal only after `maxRetries` or on the post-game report.
+**Freeze overlay.** Identical for real and decoy freezes. No evals, no channel, no hints during play. Reveal only after `maxRetries` or on the post-game report. After `maxRetries`, show the expert top as an arrow; the user may play any legal move. Do not auto-play the expert move.
 
 **Decoys.** With probability `decoyFreezeRate`, freeze a move that passed optimality. Log `trigger: 'decoy'`; exclude from quality metrics. Repeating the **same** move is accepted (confidence) — do not roll another decoy on that retry. A different move is re-evaluated normally. If that later move passes without a real freeze, the ply still logs `decoy` so the report can show both tries. Always wait `verdictGateMs` before showing the verdict (including same-move decoy accepts). Report move rows: real freezes stay highlighted as today; decoys use the same yellow (`#f0c14b`) as elsewhere. Do not show a trigger column.
 

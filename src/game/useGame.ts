@@ -69,6 +69,7 @@ interface PendingPly {
   didFreeze: boolean
   hadRealFreeze: boolean
   hadDecoy: boolean
+  revealedTop: string | null
 }
 
 function stampAttemptRatio(pending: PendingPly | null, ratio: number): void {
@@ -273,7 +274,6 @@ export function useGame() {
         pending.attemptRatios,
         uci,
         extras.ratio,
-        extras.resolved,
       )
       const retries = Math.max(0, attempts.length - 1)
       const ply = pending.ply
@@ -344,13 +344,14 @@ export function useGame() {
   )
 
   const enterFreeze = useCallback(
-    (decoy: boolean) => {
+    (decoy: boolean, revealed: FreezeView['revealed'] = null) => {
       const config = configRef.current
       const meta = gameMetaRef.current
       const pending = pendingRef.current
       if (!meta || !pending) return
       restoreFen(chessRef.current, pending.fenBefore)
       pending.didFreeze = true
+      if (revealed) pending.revealedTop = revealed.thresholdTop
       const now = Date.now()
       if (
         config.freezeClockMode === 'grace' &&
@@ -379,7 +380,7 @@ export function useGame() {
           decoy,
           retries: pending.attempts.length,
           maxRetries: config.maxRetries,
-          revealed: null,
+          revealed,
         },
         fen: chessRef.current.fen(),
         sanMoves: chessRef.current.history(),
@@ -455,6 +456,7 @@ export function useGame() {
           didFreeze: false,
           hadRealFreeze: false,
           hadDecoy: false,
+          revealedTop: null,
         }
       } else {
         pendingRef.current.attempts.push(uci)
@@ -484,6 +486,7 @@ export function useGame() {
           await gate
           evaluatingRef.current = false
           stampAttemptRatio(pendingRef.current, 0)
+          const revealed = Boolean(pendingRef.current?.revealedTop)
           const skipped: EvalComment = {
             ply,
             uci,
@@ -499,9 +502,9 @@ export function useGame() {
               ratio: 0,
               wdlDelta: 0,
               sfBestMove: '',
-              thresholdTopMove: '',
+              thresholdTopMove: pendingRef.current?.revealedTop ?? '',
               trigger: 'none',
-              resolved: 'accepted',
+              resolved: revealed ? 'revealed' : 'accepted',
               evaluated: false,
               isForcing: isForcingMove(fenBefore, uci),
               evalComment: skipped,
@@ -513,9 +516,9 @@ export function useGame() {
             ratio: 0,
             wdlDelta: 0,
             sfBestMove: '',
-            thresholdTopMove: '',
+            thresholdTopMove: pendingRef.current?.revealedTop ?? '',
             trigger: 'none',
-            resolved: 'accepted',
+            resolved: revealed ? 'revealed' : 'accepted',
             evaluated: false,
             isForcing: isForcingMove(fenBefore, uci),
             evalComment: skipped,
@@ -543,7 +546,8 @@ export function useGame() {
         stampAttemptRatio(pendingRef.current, ratio)
         const channel = freezeVerdict(ratio, config.tauRatio)
         const pending = pendingRef.current
-        const skipDecoy = pending?.skipDecoy || pending?.decoyActive
+        const alreadyRevealed = Boolean(pending?.revealedTop)
+        const skipDecoy = alreadyRevealed || pending?.skipDecoy || pending?.decoyActive
         const decoy =
           !channel.freeze &&
           !skipDecoy &&
@@ -564,33 +568,37 @@ export function useGame() {
           tauRatio: config.tauRatio,
         }
 
+        if (alreadyRevealed) {
+          if (pending && channel.freeze) pending.hadRealFreeze = true
+          const trigger = isRealFreezeTrigger(channel.trigger)
+            ? channel.trigger
+            : pending?.hadRealFreeze
+              ? 'ratio'
+              : channel.trigger
+          await acceptUserMove(uci, {
+            ratio,
+            wdlDelta: 0,
+            sfBestMove: '',
+            thresholdTopMove: pending?.revealedTop || top?.uci || '',
+            trigger,
+            resolved: 'revealed',
+            evaluated: true,
+            isForcing: isForcingMove(fenBefore, uci),
+            evalComment: { ...evalComment, freeze: channel.freeze, trigger },
+          })
+          return
+        }
+
         if (channel.freeze || decoy) {
           if (pending && channel.freeze) pending.hadRealFreeze = true
-          const fails = (pending?.attempts.length ?? 1)
+          const fails = pending?.attempts.length ?? 1
           if (channel.freeze && fails >= config.maxRetries) {
-            const best = top?.uci || uci
-            restoreFen(chess, fenBefore)
-            applyUci(chess, best)
-            setState((s) => ({
-              ...s,
-              freeze: {
-                decoy: false,
-                retries: fails,
-                maxRetries: config.maxRetries,
-                revealed: { thresholdTop: top?.uci ?? '' },
-              },
-            }))
-            await acceptUserMove(best, {
-              ratio,
-              wdlDelta: 0,
-              sfBestMove: '',
-              thresholdTopMove: top?.uci ?? '',
-              trigger: channel.trigger,
-              resolved: 'revealed',
-              evaluated: true,
-              isForcing: isForcingMove(fenBefore, best),
-              evalComment: { ...evalComment, uci: best, freeze: true, trigger: channel.trigger },
+            logEval({
+              ...evalComment,
+              attempts: pending?.attempts,
+              retries: Math.max(0, fails - 1),
             })
+            enterFreeze(false, { thresholdTop: top?.uci ?? '' })
             return
           }
           if (pending) {
@@ -623,9 +631,16 @@ export function useGame() {
       } catch (err) {
         evaluatingRef.current = false
         restoreFen(chess, fenBefore)
+        const revealedTop = pendingRef.current?.revealedTop
+        const message = err instanceof Error ? err.message : String(err)
+        if (revealedTop) {
+          enterFreeze(false, { thresholdTop: revealedTop })
+          setState((s) => ({ ...s, error: message }))
+          return
+        }
         setState((s) => ({
           ...s,
-          error: err instanceof Error ? err.message : String(err),
+          error: message,
           status: 'playing',
           fen: chess.fen(),
           sanMoves: chess.history(),

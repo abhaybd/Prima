@@ -17,7 +17,7 @@ The hypothesis: strong blitz is not finding best moves quickly. It is reliably a
 
 After you move, the app scores **optimality** — would a stronger human (the *expert* rating, not the bot) also play this, relative to their top choice? Shown as a percent of the expert’s top-move probability.
 
-A freeze does not tell you *why*. Real freezes and occasional **decoy** freezes look identical, so a freeze is not a free “this was a mistake” signal. Repeating the same move after a freeze is allowed; that is treated as confidence in the original choice. After several failed attempts the app reveals the expert’s top move, plays it, and records a miss.
+A freeze does not tell you *why*. Real freezes and occasional **decoy** freezes look identical, so a freeze is not a free “this was a mistake” signal. Repeating the same move after a freeze is allowed; that is treated as confidence in the original choice. After several failed attempts the app reveals the expert’s top move as an arrow. You can play that move or any other; the ply is still recorded as a miss.
 
 Moves that stay in the opening book, forced-only-move positions, and already-decided games are not evaluated. Leaving the book is evaluated.
 

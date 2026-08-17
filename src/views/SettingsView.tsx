@@ -139,7 +139,7 @@ export function SettingsView() {
         <div className={styles.grid}>
           <Field
             label="Max retries"
-            tip="After this many failed attempts in a freeze, the expert's top move is revealed and played."
+            tip="After this many failed attempts in a freeze, the expert's top move is shown as an arrow. You can play any move."
           >
             <input
               type="number"

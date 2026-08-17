@@ -1,4 +1,4 @@
-import type { FreezeTrigger, MoveResolved } from '../types/game'
+import type { FreezeTrigger } from '../types/game'
 
 export type SkipReason = 'opening' | 'forced' | 'terminal'
 
@@ -76,7 +76,6 @@ export function commitAttempts(
   attemptRatios: number[],
   uci: string,
   ratio: number,
-  resolved: MoveResolved,
 ): { attempts: string[]; attemptRatios: number[] } {
   const aligned = attempts.map((_, i) =>
     typeof attemptRatios[i] === 'number' ? attemptRatios[i] : ratio,
@@ -84,7 +83,7 @@ export function commitAttempts(
   if (attempts.includes(uci)) return { attempts, attemptRatios: aligned }
   return {
     attempts: [...attempts, uci],
-    attemptRatios: [...aligned, resolved === 'revealed' ? 1 : ratio],
+    attemptRatios: [...aligned, ratio],
   }
 }
 

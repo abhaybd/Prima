@@ -63,23 +63,29 @@ describe('freeze criterion', () => {
     expect(recordedTrigger('ratio', true, true)).toBe('ratio')
   })
 
-  it('commits per-attempt optimality, using 1 for an auto-revealed expert move', () => {
-    expect(commitAttempts(['e2e4'], [0.2], 'e2e4', 0.2, 'accepted')).toEqual({
+  it('commits per-attempt optimality, including a new move after the expert is revealed', () => {
+    expect(commitAttempts(['e2e4'], [0.2], 'e2e4', 0.2)).toEqual({
       attempts: ['e2e4'],
       attemptRatios: [0.2],
     })
-    expect(commitAttempts(['e2e4', 'd2d4'], [0.1, 0.4], 'g1f3', 0.4, 'revealed')).toEqual({
+    expect(commitAttempts(['e2e4', 'd2d4'], [0.1, 0.4], 'g1f3', 0.4)).toEqual({
       attempts: ['e2e4', 'd2d4', 'g1f3'],
-      attemptRatios: [0.1, 0.4, 1],
+      attemptRatios: [0.1, 0.4, 0.4],
     })
-    expect(commitAttempts(['e2e4'], [], 'e2e4', 0.8, 'accepted')).toEqual({
+    expect(commitAttempts(['e2e4'], [], 'e2e4', 0.8)).toEqual({
       attempts: ['e2e4'],
       attemptRatios: [0.8],
     })
-    expect(commitAttempts(['e2e4', 'd2d4'], [0.9, 0.7], 'd2d4', 0.7, 'accepted')).toEqual({
+    expect(commitAttempts(['e2e4', 'd2d4'], [0.9, 0.7], 'd2d4', 0.7)).toEqual({
       attempts: ['e2e4', 'd2d4'],
       attemptRatios: [0.9, 0.7],
     })
+    const afterHint = commitAttempts(['e2e4', 'd2d4'], [0.1, 0.2], 'c2c4', 0.15)
+    expect(afterHint.attempts.at(-1)).toBe('c2c4')
+    expect(afterHint.attemptRatios.at(-1)).toBe(0.15)
+    expect(
+      ratioForAttempt({ ...afterHint, ratio: 0.15, evaluated: true }, 2),
+    ).toBe(0.15)
   })
 
   it('reads per-attempt optimality, falling back for single-try legacy records', () => {

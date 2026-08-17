@@ -6,6 +6,7 @@ import { DebugPanel } from '../components/DebugPanel'
 import { FreezeOverlay } from '../components/FreezeOverlay'
 import { MoveList } from '../components/MoveList'
 import { useGame } from '../game/useGame'
+import { uciToSan } from '../lib/chess'
 import { debugHref, useDebugMode } from '../lib/debug'
 import { loadConfig, mergeConfig, saveConfig } from '../store/config'
 import type { TimeControl, UserColorPref } from '../types/config'
@@ -68,8 +69,7 @@ export function PlayView() {
   const navigate = useNavigate()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState<PlayPrefs>(loadPlayPrefs)
-  const interactive =
-    (state.status === 'playing' || state.status === 'frozen') && !state.freeze?.revealed
+  const interactive = state.status === 'playing' || state.status === 'frozen'
   const hasGame = state.status !== 'idle' || state.gameId !== null
 
   function openNewGameDialog() {
@@ -110,13 +110,19 @@ export function PlayView() {
               <div className={styles.timeoutTitle}>Ran out of time</div>
             </div>
           ) : null}
-          {state.status === 'frozen' && state.freeze && !state.freeze.revealed ? (
-            <FreezeOverlay retries={state.freeze.retries} maxRetries={state.freeze.maxRetries} />
+          {state.status === 'frozen' && state.freeze ? (
+            <FreezeOverlay
+              key={state.freeze.revealed ? 'revealed' : 'frozen'}
+              retries={state.freeze.retries}
+              maxRetries={state.freeze.maxRetries}
+              revealed={Boolean(state.freeze.revealed)}
+            />
           ) : null}
           <Board
             fen={state.fen}
             orientation={state.userColor === 'w' ? 'white' : 'black'}
             interactive={interactive}
+            hintUci={state.freeze?.revealed?.thresholdTop}
             onMove={onDrop}
           />
         </div>
@@ -185,7 +191,10 @@ export function PlayView() {
         </div>
         {state.freeze?.revealed ? (
           <p className="hint">
-            Revealed {state.freeze.revealed.thresholdTop} (expert)
+            Play any move. Arrow is{' '}
+            {uciToSan(state.fen, state.freeze.revealed.thresholdTop) ||
+              state.freeze.revealed.thresholdTop}
+            .
           </p>
         ) : null}
         <h3>Moves</h3>
