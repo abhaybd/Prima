@@ -44,6 +44,10 @@ export function saveConfig(config: Config): void {
   localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config))
 }
 
+export function clearConfig(): void {
+  localStorage.removeItem(CONFIG_STORAGE_KEY)
+}
+
 export function mergeConfig(base: Config, patch: Partial<Config>): Config {
   const timeControl = {
     initial: patch.timeControl?.initial ?? base.timeControl.initial,

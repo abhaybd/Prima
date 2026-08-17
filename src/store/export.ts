@@ -1,6 +1,6 @@
 import type { Config } from '../types/config'
 import type { GameRecord, MoveRecord } from '../types/game'
-import { loadConfig, saveConfig } from './config'
+import { clearConfig, loadConfig, saveConfig } from './config'
 import { getAllGames, getAllMoves, replaceAllData } from './db'
 
 export interface ExportPayload {
@@ -29,6 +29,11 @@ export async function importDatabase(json: string): Promise<void> {
   }
   if (data.config) saveConfig(data.config)
   await replaceAllData(data.games, data.moves)
+}
+
+export async function clearStoredData(): Promise<void> {
+  clearConfig()
+  await replaceAllData([], [])
 }
 
 export function downloadText(

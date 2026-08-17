@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from '../types/config'
-import { loadConfig, mergeConfig, saveConfig } from './config'
+import { clearConfig, loadConfig, mergeConfig, saveConfig } from './config'
 
 describe('config persistence', () => {
   afterEach(() => {
@@ -112,5 +112,20 @@ describe('config persistence', () => {
     expect(loadConfig()).not.toHaveProperty('sfMovetimeMs')
     expect(loadConfig().opponentElo).toBe(1800)
     expect(loadConfig().configVersion).toBe(3)
+  })
+
+  it('clears stored config so load returns defaults', () => {
+    const memory = new Map<string, string>()
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: {
+        getItem: (k: string) => memory.get(k) ?? null,
+        setItem: (k: string, v: string) => memory.set(k, v),
+        removeItem: (k: string) => memory.delete(k),
+      },
+      configurable: true,
+    })
+    saveConfig({ ...DEFAULT_CONFIG, opponentElo: 1800, timeControl: { initial: 60, increment: 1 } })
+    clearConfig()
+    expect(loadConfig()).toEqual(DEFAULT_CONFIG)
   })
 })

@@ -39,6 +39,11 @@ button.secondary {
   border: 1px solid #3d444d;
 }
 
+button.danger {
+  background: #e5534b;
+  color: #fff;
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: default;

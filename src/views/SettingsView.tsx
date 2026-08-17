@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_CONFIG, type Config } from '../types/config'
 import { loadConfig, saveConfig } from '../store/config'
-import { downloadText, exportDatabase, importDatabase } from '../store/export'
+import { clearStoredData, downloadText, exportDatabase, importDatabase } from '../store/export'
 import styles from './SettingsView.module.css'
 
 function playPagePrefs(live: Config) {
@@ -70,6 +70,21 @@ export function SettingsView() {
       setMessage('Imported')
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Import failed')
+    }
+  }
+
+  async function onClearData() {
+    const confirmed = window.confirm(
+      'This will delete all settings, games, and move history from this browser. This cannot be undone.',
+    )
+    if (!confirmed) return
+    try {
+      await clearStoredData()
+      setConfig(loadConfig())
+      setSaved(false)
+      setMessage('All stored data cleared')
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Clear failed')
     }
   }
 
@@ -244,6 +259,18 @@ export function SettingsView() {
           }}
         />
         {saved || message ? <span className="hint">{message}</span> : null}
+      </div>
+
+      <div className={styles.dangerZone}>
+        <button
+          type="button"
+          className="danger"
+          title="Delete settings, games, and move history from this browser."
+          onClick={() => void onClearData()}
+        >
+          Clear data
+        </button>
+        <span className="hint">Deletes settings, games, and move history from this browser.</span>
       </div>
     </div>
   )
