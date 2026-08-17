@@ -79,6 +79,7 @@ export interface PlayState {
   freeze: FreezeView | null
   sanMoves: string[]
   lastResult: string
+  timedOut: Color | null
   error: string | null
   loadProgress: LoadProgress | null
   gameId: string | null
@@ -95,6 +96,7 @@ const initialState = (): PlayState => ({
   freeze: null,
   sanMoves: [],
   lastResult: '*',
+  timedOut: null,
   error: null,
   loadProgress: null,
   gameId: null,
@@ -142,37 +144,39 @@ export function useGame() {
     const result = resultFromBoard(chess, timedOut)
     clocksRef.current = { ...clocksRef.current, running: null }
     freezeGraceEndsAtRef.current = null
+    evaluatingRef.current = false
+    pendingRef.current = null
     statusRef.current = 'gameover'
-    const meta = gameMetaRef.current
-    if (meta) {
-      const config = configRef.current
-      const pgn = pgnWithEvalComments(chess.history(), evalCommentsRef.current, {
-        Event: 'Blitz Freeze Drill',
-        White: meta.userColor === 'w' ? 'User' : `Maia ${config.opponentElo}`,
-        Black: meta.userColor === 'b' ? 'User' : `Maia ${config.opponentElo}`,
-        Result: result,
-      })
-      logGamePgn(pgn)
-      const record: GameRecord = {
-        gameId: meta.gameId,
-        startedAt: meta.startedAt,
-        endedAt: Date.now(),
-        config,
-        pgn,
-        result,
-        userColor: meta.userColor,
-      }
-      await putGame(record)
-    }
     setState((s) => ({
       ...s,
       status: 'gameover',
       lastResult: result,
+      timedOut: timedOut ?? null,
       fen: chess.fen(),
       sanMoves: chess.history(),
       clocks: clocksRef.current,
       freeze: null,
     }))
+    const meta = gameMetaRef.current
+    if (!meta) return
+    const config = configRef.current
+    const pgn = pgnWithEvalComments(chess.history(), evalCommentsRef.current, {
+      Event: 'Blitz Freeze Drill',
+      White: meta.userColor === 'w' ? 'User' : `Maia ${config.opponentElo}`,
+      Black: meta.userColor === 'b' ? 'User' : `Maia ${config.opponentElo}`,
+      Result: result,
+    })
+    logGamePgn(pgn)
+    const record: GameRecord = {
+      gameId: meta.gameId,
+      startedAt: meta.startedAt,
+      endedAt: Date.now(),
+      config,
+      pgn,
+      result,
+      userColor: meta.userColor,
+    }
+    await putGame(record)
   }, [])
 
   const playOpponent = useCallback(async () => {
@@ -732,6 +736,7 @@ export function useGame() {
         freeze: null,
         sanMoves: [],
         lastResult: '*',
+        timedOut: null,
         error: null,
         loadProgress: null,
         gameId,

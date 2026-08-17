@@ -98,8 +98,15 @@ export function PlayView() {
     <div className={styles.layout}>
       <div className={styles.boardCol}>
         <div
-          className={`${styles.boardFrame}${state.status === 'frozen' ? ` ${styles.frozenFrame}` : ''}`}
+          className={`${styles.boardFrame}${
+            state.status === 'frozen' ? ` ${styles.frozenFrame}` : ''
+          }${state.timedOut ? ` ${styles.flaggedFrame}` : ''}`}
         >
+          {state.timedOut ? (
+            <div className={styles.timeoutBanner}>
+              <div className={styles.timeoutTitle}>Ran out of time</div>
+            </div>
+          ) : null}
           {state.status === 'frozen' && state.freeze && !state.freeze.revealed ? (
             <FreezeOverlay retries={state.freeze.retries} maxRetries={state.freeze.maxRetries} />
           ) : null}
@@ -163,7 +170,13 @@ export function PlayView() {
             <div className="statLabel">Freezes</div>
           </div>
           <div>
-            <div className="stat">{state.status === 'gameover' ? state.lastResult : state.status}</div>
+            <div className="stat">
+              {state.status === 'gameover'
+                ? state.timedOut
+                  ? 'out of time'
+                  : state.lastResult
+                : state.status}
+            </div>
             <div className="statLabel">Status</div>
           </div>
         </div>
