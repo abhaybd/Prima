@@ -25,7 +25,7 @@ import {
   tickClocks,
   type ClockState,
 } from '../lib/clocks'
-import { combineChannels, maybeDecoy, policyRatio, skipEvalReason } from '../lib/freeze'
+import { combineChannels, isRealFreezeTrigger, maybeDecoy, policyRatio, skipEvalReason } from '../lib/freeze'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { moveProb, sampleMove, topMove } from '../lib/maia/decode'
 import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type EvalComment } from '../lib/pgn'
@@ -68,6 +68,7 @@ interface PendingPly {
   originalMove: string | null
   skipDecoy: boolean
   didFreeze: boolean
+  hadRealFreeze: boolean
 }
 
 export interface PlayState {
@@ -297,6 +298,7 @@ export function useGame() {
         isForcing: extras.isForcing,
         phase: phaseOf(pending.fenBefore, ply),
         evaluated: extras.evaluated,
+        hadRealFreeze: pending.hadRealFreeze || isRealFreezeTrigger(extras.trigger),
       })
       if (pending.didFreeze && config.freezeClockMode === 'penalty') {
         const deducted = deductMs(
@@ -441,6 +443,7 @@ export function useGame() {
           originalMove: uci,
           skipDecoy: false,
           didFreeze: false,
+          hadRealFreeze: false,
         }
       } else {
         pendingRef.current.attempts.push(uci)
@@ -619,6 +622,7 @@ export function useGame() {
         }
 
         if (channel.freeze || decoy) {
+          if (pending && channel.freeze) pending.hadRealFreeze = true
           const fails = (pending?.attempts.length ?? 1)
           if (channel.freeze && fails >= config.maxRetries) {
             const best = beforeEval?.bestMove || top?.uci || uci

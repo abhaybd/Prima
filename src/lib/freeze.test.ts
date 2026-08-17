@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../types/config'
-import { combineChannels, maybeDecoy, policyRatio, shouldSkipEval, skipEvalReason } from './freeze'
+import { combineChannels, maybeDecoy, policyRatio, plyHadRealFreeze, shouldSkipEval, skipEvalReason } from './freeze'
 
 const base = {
   legalMoveCount: 20,
@@ -72,5 +72,14 @@ describe('freeze criterion', () => {
     expect(maybeDecoy(false, 1)).toBe(false)
     expect(maybeDecoy(true, 1, () => 0)).toBe(true)
     expect(maybeDecoy(true, 0, () => 0)).toBe(false)
+  })
+
+  it('treats a later pass as a freeze ply if any attempt froze', () => {
+    expect(plyHadRealFreeze({ trigger: 'none', retries: 0 })).toBe(false)
+    expect(plyHadRealFreeze({ trigger: 'ratio', retries: 0 })).toBe(true)
+    expect(plyHadRealFreeze({ trigger: 'none', retries: 2 })).toBe(true)
+    expect(plyHadRealFreeze({ trigger: 'decoy', retries: 1 })).toBe(false)
+    expect(plyHadRealFreeze({ trigger: 'none', retries: 2, hadRealFreeze: true })).toBe(true)
+    expect(plyHadRealFreeze({ trigger: 'none', retries: 2, hadRealFreeze: false })).toBe(false)
   })
 })

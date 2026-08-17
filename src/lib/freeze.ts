@@ -61,3 +61,19 @@ export function maybeDecoy(
   if (!passed) return false
   return random() < decoyFreezeRate
 }
+
+export function isRealFreezeTrigger(trigger: FreezeTrigger): boolean {
+  return trigger === 'ratio' || trigger === 'wdl' || trigger === 'both'
+}
+
+/** True if any attempt on the ply was a real freeze (not a decoy). */
+export function plyHadRealFreeze(m: {
+  trigger: FreezeTrigger
+  retries: number
+  hadRealFreeze?: boolean
+}): boolean {
+  if (m.hadRealFreeze) return true
+  if (isRealFreezeTrigger(m.trigger)) return true
+  if (m.hadRealFreeze === false || m.trigger === 'decoy') return false
+  return m.retries > 0
+}
