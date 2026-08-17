@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  Area,
   CartesianGrid,
-  Legend,
+  ComposedChart,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,7 +13,7 @@ import {
 import { getAllGames, getAllMoves } from '../store/db'
 import type { GameRecord, MoveRecord } from '../types/game'
 import { debugHref, useDebugMode } from '../lib/debug'
-import { CLOCK_BUCKETS, clockBucket, formatOptimality, mean } from '../lib/metrics'
+import { CLOCK_BUCKETS, clockBucket, formatOptimality, meanCi95 } from '../lib/metrics'
 import styles from './DashboardView.module.css'
 
 export function DashboardView() {
@@ -34,13 +34,32 @@ export function DashboardView() {
 
   const clockChart = CLOCK_BUCKETS.map((bucket) => {
     const rows = evaluated.filter((m) => clockBucket(m.clockRemainingMs) === bucket)
-    const ratio = mean(rows.map((m) => m.ratio))
+    const stats = meanCi95(rows.map((m) => m.ratio))
+    if (!stats) {
+      return {
+        bucket,
+        optimality: null,
+        ciLow: null,
+        ciHigh: null,
+        bandBase: null,
+        bandSpan: null,
+        n: 0,
+      }
+    }
+    const optimality = stats.mean * 100
+    const ciLow = stats.low === null ? null : clampPct(stats.low * 100)
+    const ciHigh = stats.high === null ? null : clampPct(stats.high * 100)
     return {
       bucket,
-      optimality: ratio === null ? null : ratio * 100,
-      n: rows.length,
+      optimality,
+      ciLow,
+      ciHigh,
+      bandBase: ciLow ?? optimality,
+      bandSpan: ciLow === null || ciHigh === null ? 0 : ciHigh - ciLow,
+      n: stats.n,
     }
   })
+  const clockDomain = optimalityDomain(clockChart)
 
   const trend = useMemo(() => {
     const byGame = new Map<string, { startedAt: number; tau: number; rate: number }>()
@@ -86,32 +105,59 @@ export function DashboardView() {
 
       <section className="panel">
         <h2>Quality versus remaining clock</h2>
-        <p className="hint">Mean optimality (↑ better) by time left. Decoys excluded.</p>
+        <p className="hint">Mean optimality (↑ better) by time left, with 95% CI. Decoys excluded.</p>
         <div className={styles.chart}>
           <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={clockChart} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
+            <ComposedChart data={clockChart} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
               <CartesianGrid stroke="#212830" />
               <XAxis dataKey="bucket" stroke="#8b98a5" />
               <YAxis
                 stroke="#79b8ff"
                 width={72}
+                domain={clockDomain}
                 label={{
-                  value: 'optimality % ↑',
+                  value: 'optimality % (↑)',
                   angle: -90,
                   position: 'insideLeft',
                   style: { fill: '#79b8ff', fontSize: 12 },
                 }}
               />
-              <Tooltip formatter={formatChartTooltip} />
-              <Legend />
+              <Tooltip content={<ClockTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="bandBase"
+                stackId="ci"
+                stroke="none"
+                fill="transparent"
+                legendType="none"
+                tooltipType="none"
+                connectNulls
+                isAnimationActive={false}
+                dot={false}
+                activeDot={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="bandSpan"
+                stackId="ci"
+                stroke="none"
+                fill="#79b8ff"
+                fillOpacity={0.22}
+                legendType="none"
+                tooltipType="none"
+                connectNulls
+                isAnimationActive={false}
+                dot={false}
+                activeDot={false}
+              />
               <Line
                 type="monotone"
                 dataKey="optimality"
-                name="optimality (↑)"
                 stroke="#79b8ff"
                 connectNulls
+                isAnimationActive={false}
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </section>
@@ -156,12 +202,51 @@ export function DashboardView() {
   )
 }
 
-function formatChartTooltip(
-  value: unknown,
-  name: string,
-  item: { dataKey?: string | number },
-): [string, string] {
-  if (typeof value !== 'number') return ['—', name]
-  if (item.dataKey === 'optimality') return [`${value.toFixed(1)}%`, name]
-  return [String(value), name]
+function clampPct(n: number): number {
+  return Math.min(100, Math.max(0, n))
+}
+
+function optimalityDomain(
+  rows: { optimality: number | null; ciLow: number | null; ciHigh: number | null }[],
+): [number, number] {
+  const ys = rows
+    .flatMap((r) => [r.optimality, r.ciLow, r.ciHigh])
+    .filter((v): v is number => v != null)
+  if (ys.length === 0) return [0, 100]
+  const lo = Math.max(0, Math.floor(Math.min(...ys) / 5) * 5)
+  const hi = Math.min(100, Math.ceil(Math.max(...ys) / 5) * 5)
+  return lo < hi ? [lo, hi] : [Math.max(0, lo - 5), Math.min(100, hi + 5)]
+}
+
+type ClockChartRow = {
+  bucket: string
+  optimality: number | null
+  ciLow: number | null
+  ciHigh: number | null
+  n: number
+}
+
+function ClockTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
+  payload?: { payload: ClockChartRow }[]
+  label?: string
+}) {
+  if (!active || !payload?.length) return null
+  const row = payload[0].payload
+  return (
+    <div className={styles.tooltip}>
+      <div className={styles.tooltipLabel}>{label}</div>
+      <div>
+        {row.optimality === null ? '—' : `${row.optimality.toFixed(1)}%`}
+        {row.ciLow !== null && row.ciHigh !== null
+          ? ` · 95% CI ${row.ciLow.toFixed(1)}–${row.ciHigh.toFixed(1)}%`
+          : ''}
+      </div>
+      <div className={styles.tooltipN}>n={row.n}</div>
+    </div>
+  )
 }
