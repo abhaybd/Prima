@@ -32,6 +32,17 @@ If you would rather skip Hugging Face, put `maia3-23m.fp16.onnx` or `maia3-5m.fp
 
 Vite bundles ONNX Runtime WASM from `onnxruntime-web` (do not import those files from `public/ort/`).
 
+## Install and offline
+
+Prima is a Progressive Web App. After one online visit, the app shell, Stockfish, ONNX Runtime, and the opening book are cached. After you start a game once (so Maia can download), you can install it from the browser and play without a network. Chrome and Edge offer **Install app** in the address bar; on iPhone use Share → Add to Home Screen.
+
+A production build is required for the service worker (`npm run dev` does not register it):
+
+```bash
+npm run build
+npm run preview
+```
+
 ## License
 
 [GNU Affero General Public License v3](LICENSE).

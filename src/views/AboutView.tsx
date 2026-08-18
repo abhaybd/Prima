@@ -59,6 +59,11 @@ export function AboutView() {
           machine. If you clear site data, that history is gone — the only backup is exporting and
           importing JSON from Settings.
         </p>
+        <p>
+          You can install Prima as an app from the browser and use it offline after the first visit.
+          Stockfish and the opening book cache with the app; the Maia model downloads the first
+          time you start a game, then stays here too.
+        </p>
       </section>
 
       <section className="panel">

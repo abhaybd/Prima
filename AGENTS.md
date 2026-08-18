@@ -18,6 +18,8 @@ public/models/    optional local ONNX; missing .onnx URLs must 404, never SPA HT
 public/books/     first 6 moves of 8moves_v3 as position hashes; skip eval while the move stays in book
 ```
 
+PWA (`vite-plugin-pwa`, production build only). Precache the app shell, Stockfish, ORT wasm, and the opening book. Maia ONNX stays in Cache Storage `prima-models` on first use — do not precache `.onnx`. Workbox `navigateFallback` is `index.html` for SPA routes; denylist `.onnx` / `.wasm` / `.u64` so a miss is never HTML.
+
 Routes: `/`, `/settings`, `/report/:gameId`, `/dashboard`, `/about`.
 
 Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engines. Maia is a module Worker with onnxruntime-web. Stockfish is a classic Worker (`stockfish-18-lite-single`) used only to record eval after each **committed** ply. RPC uses incrementing ids; ignore stale replies.
@@ -49,7 +51,7 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 **ORT.** `onnxruntime-web/wasm`, `numThreads = 1`, `proxy = false`. Load `ort-wasm-simd-threaded.{wasm,mjs}` with Vite `?url` via package exports (`onnxruntime-web/ort-wasm-simd-threaded.mjs`, not `dist/` or `public/ort/`). Do not assume WebGPU in the worker.
 
-**Models.** Fetch Hugging Face first, then `/models/…`. Validate bytes before caching or passing to ORT (`assertOnnxModel`): reject HTML and tiny files. Vite must 404 missing `.onnx` paths — SPA fallback of `index.html` as a “model” causes protobuf parse errors. Drop invalid Cache Storage entries.
+**Models.** Fetch Hugging Face first, then `/models/…`. Validate bytes before caching or passing to ORT (`assertOnnxModel`): reject HTML and tiny files. Vite must 404 missing `.onnx` paths — SPA fallback of `index.html` as a “model” causes protobuf parse errors. The service worker must not navigate-fallback `.onnx` either, and must not precache ONNX files. Drop invalid Cache Storage entries.
 
 ## Persistence
 
@@ -60,6 +62,6 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 ## Tests
 
-`npm test` (Vitest). Cover freeze/exclusions, Maia vocab/tokenize/decode, ONNX-bytes guard, ORT wasm `?url` (not `public/ort`), opening book, config defaults, Stockfish score→pawns. Do not add Playwright unless asked.
+`npm test` (Vitest). Cover freeze/exclusions, Maia vocab/tokenize/decode, ONNX-bytes guard, ORT wasm `?url` (not `public/ort`), opening book, config defaults, Stockfish score→pawns, PWA SPA-fallback denylist for `.onnx`. Do not add Playwright unless asked.
 
 When changing freeze math, add a unit test first. When changing Maia encode/decode, extend `src/lib/maia/maia.test.ts` before wiring UI.
