@@ -209,7 +209,7 @@ export function SettingsView() {
         <div className={styles.grid}>
           <Field
             label="Clock during freeze"
-            tip="Pause + penalty stops the clock then deducts time. Keep running is closest to real blitz. Pause only stops the clock. Pause, then run gives a short pause before the clock starts again."
+            tip="Pause + penalty stops the clock, then deducts time after a real freeze is resolved. Decoys are not charged. Keep running is closest to real blitz. Pause only stops the clock. Pause, then run gives a short pause before the clock starts again."
           >
             <select
               value={config.freezeClockMode}
@@ -226,7 +226,7 @@ export function SettingsView() {
           {config.freezeClockMode === 'penalty' ? (
             <Field
               label="Penalty seconds"
-              tip="Seconds deducted from your clock when a freeze is resolved."
+              tip="Seconds deducted after a real freeze is resolved, not when the overlay appears. Decoys do not deduct time."
             >
               <input
                 type="number"

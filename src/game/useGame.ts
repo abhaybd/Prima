@@ -21,6 +21,7 @@ import {
   deductMs,
   freezeClockRunsDuringFreeze,
   pauseClocks,
+  shouldApplyFreezePenalty,
   resumeClocks,
   tickClocks,
   type ClockState,
@@ -438,7 +439,7 @@ export function useGame() {
       savedMovesRef.current.set(ply, move)
       if (afterEval) applySfPoint(ply, afterEval, false)
       else queueSfEval(ply, chess.fen(), true)
-      if (pending.didFreeze && config.freezeClockMode === 'penalty') {
+      if (shouldApplyFreezePenalty(config.freezeClockMode, hadRealFreeze)) {
         const deducted = deductMs(
           clocksRef.current,
           meta.userColor,

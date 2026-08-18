@@ -50,6 +50,14 @@ export function deductMs(clocks: ClockState, color: Color, ms: number): { clocks
   return { clocks: next, flagged: null }
 }
 
+/** Lump-sum freeze penalty. Apply only for real freezes, and only when the ply is resolved. */
+export function shouldApplyFreezePenalty(
+  mode: FreezeClockMode,
+  hadRealFreeze: boolean,
+): boolean {
+  return mode === 'penalty' && hadRealFreeze
+}
+
 /** Whether the user's clock should tick while the position is frozen. */
 export function freezeClockRunsDuringFreeze(
   mode: FreezeClockMode,
