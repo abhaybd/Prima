@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Area,
@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import { getAllGames, getAllMoves } from '../store/db'
+import { downloadGamesPgn, downloadGamesPgnZip } from '../store/export'
 import type { GameRecord, MoveRecord } from '../types/game'
 import { debugHref, useDebugMode } from '../lib/debug'
 import { CLOCK_BUCKETS, clockBucket, formatOptimality, meanCi95 } from '../lib/metrics'
@@ -187,7 +188,10 @@ export function DashboardView() {
       </section>
 
       <section className="panel">
-        <h2>Games</h2>
+        <div className={styles.gamesHead}>
+          <h2>Games</h2>
+          <DownloadAllMenu games={games} debug={debug} />
+        </div>
         <ul>
           {games.map((g) => (
             <li key={g.gameId}>
@@ -198,6 +202,70 @@ export function DashboardView() {
           ))}
         </ul>
       </section>
+    </div>
+  )
+}
+
+function DownloadAllMenu({ games, debug }: { games: GameRecord[]; debug: boolean }) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const canDownload = games.some((g) => g.pgn.trim().length > 0)
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  return (
+    <div className={styles.dropdown} ref={rootRef}>
+      <button
+        type="button"
+        className="secondary"
+        disabled={!canDownload}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        Download all
+        <span className={styles.caret} aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {open ? (
+        <div className={styles.menu} role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              downloadGamesPgn(games, debug)
+              setOpen(false)
+            }}
+          >
+            Single PGN
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              downloadGamesPgnZip(games, debug)
+              setOpen(false)
+            }}
+          >
+            Zip of PGNs
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

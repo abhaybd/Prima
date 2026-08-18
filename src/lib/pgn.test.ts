@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatEvalComment, pgnForDisplay, pgnWithEvalComments, pgnWithoutComments } from './pgn'
+import {
+  formatEvalComment,
+  joinPgns,
+  pgnExportEntries,
+  pgnForDisplay,
+  pgnWithEvalComments,
+  pgnWithoutComments,
+} from './pgn'
 
 describe('formatEvalComment', () => {
   it('includes Maia likelihood, WDL, and delta without braces', () => {
@@ -106,5 +113,46 @@ describe('pgnForDisplay', () => {
     expect(pgnForDisplay(pgn, true)).toBe(pgn)
     expect(pgnForDisplay(pgn, false)).not.toContain('trig=ratio')
     expect(pgnForDisplay(pgn, false)).toMatch(/1\.\s*e4/)
+  })
+})
+
+describe('pgnExportEntries', () => {
+  it('skips empty games, sorts oldest first, and names files by game id', () => {
+    const comments = new Map([[0, 'trig=ratio freeze=yes']])
+    const older = pgnWithEvalComments(['e4'], comments, { Event: 'Old', Result: '*' })
+    const newer = pgnWithEvalComments(['d4'], comments, { Event: 'New', Result: '*' })
+    const entries = pgnExportEntries(
+      [
+        { gameId: 'new', startedAt: 200, pgn: newer },
+        { gameId: 'empty', startedAt: 50, pgn: '  ' },
+        { gameId: 'old', startedAt: 100, pgn: older },
+      ],
+      false,
+    )
+    expect(entries.map((e) => e.filename)).toEqual(['prima-old.pgn', 'prima-new.pgn'])
+    expect(entries[0]?.pgn).toContain('[Event "Old"]')
+    expect(entries[0]?.pgn).not.toContain('trig=ratio')
+    expect(entries[1]?.pgn).toContain('[Event "New"]')
+  })
+
+  it('keeps eval comments in debug mode', () => {
+    const pgn = pgnWithEvalComments(
+      ['e4'],
+      new Map([[0, 'trig=ratio freeze=yes']]),
+      { Result: '*' },
+    )
+    const [entry] = pgnExportEntries([{ gameId: 'g', startedAt: 1, pgn }], true)
+    expect(entry?.pgn).toContain('trig=ratio')
+  })
+})
+
+describe('joinPgns', () => {
+  it('joins games with a blank line and a trailing newline', () => {
+    const joined = joinPgns(['[Event "A"]\n\n1. e4 *', '[Event "B"]\n\n1. d4 *'])
+    expect(joined).toBe('[Event "A"]\n\n1. e4 *\n\n[Event "B"]\n\n1. d4 *\n')
+  })
+
+  it('returns empty when there are no games', () => {
+    expect(joinPgns(['  ', ''])).toBe('')
   })
 })

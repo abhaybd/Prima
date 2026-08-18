@@ -98,6 +98,32 @@ export function pgnForDisplay(pgn: string, debug: boolean): string {
   return debug ? pgn : pgnWithoutComments(pgn)
 }
 
+export interface PgnExportEntry {
+  filename: string
+  pgn: string
+}
+
+/** Display-ready PGNs, oldest first, skipping empty games. */
+export function pgnExportEntries(
+  games: ReadonlyArray<{ gameId: string; startedAt: number; pgn: string }>,
+  debug: boolean,
+): PgnExportEntry[] {
+  return [...games]
+    .filter((g) => g.pgn.trim().length > 0)
+    .sort((a, b) => a.startedAt - b.startedAt)
+    .map((g) => ({
+      filename: `prima-${g.gameId}.pgn`,
+      pgn: pgnForDisplay(g.pgn, debug),
+    }))
+}
+
+/** Concatenate games into one PGN file (blank line between games). */
+export function joinPgns(pgns: readonly string[]): string {
+  const parts = pgns.map((p) => p.trim()).filter((p) => p.length > 0)
+  if (parts.length === 0) return ''
+  return `${parts.join('\n\n')}\n`
+}
+
 export function logEvalComment(d: EvalComment): string {
   const text = formatEvalComment(d)
   console.info(EVAL_LOG_PREFIX, text)

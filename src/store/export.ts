@@ -1,5 +1,7 @@
 import type { Config } from '../types/config'
 import type { GameRecord, MoveRecord } from '../types/game'
+import { joinPgns, pgnExportEntries } from '../lib/pgn'
+import { zipStore } from '../lib/zip'
 import { clearConfig, loadConfig, saveConfig } from './config'
 import { getAllGames, getAllMoves, replaceAllData } from './db'
 import { clearWelcomeSeen } from './welcome'
@@ -38,16 +40,42 @@ export async function clearStoredData(): Promise<void> {
   await replaceAllData([], [])
 }
 
-export function downloadText(
-  filename: string,
-  text: string,
-  mime = 'application/json',
-): void {
-  const blob = new Blob([text], { type: mime })
+export function downloadBlob(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+
+export function downloadText(
+  filename: string,
+  text: string,
+  mime = 'application/json',
+): void {
+  downloadBlob(filename, new Blob([text], { type: mime }))
+}
+
+function dateStamp(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+export function downloadGamesPgn(games: GameRecord[], debug: boolean): void {
+  const entries = pgnExportEntries(games, debug)
+  if (entries.length === 0) return
+  downloadText(
+    `prima-games-${dateStamp()}.pgn`,
+    joinPgns(entries.map((e) => e.pgn)),
+    'application/x-chess-pgn',
+  )
+}
+
+export function downloadGamesPgnZip(games: GameRecord[], debug: boolean): void {
+  const entries = pgnExportEntries(games, debug)
+  if (entries.length === 0) return
+  const zip = zipStore(
+    entries.map((e) => ({ name: e.filename, data: new TextEncoder().encode(e.pgn) })),
+  )
+  downloadBlob(`prima-games-${dateStamp()}.zip`, new Blob([zip], { type: 'application/zip' }))
 }
