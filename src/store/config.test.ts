@@ -23,7 +23,7 @@ describe('config persistence', () => {
     expect(loadConfig().gameDecidedThreshold).toBe(7)
     expect(loadConfig().opponentElo).toBe(1000)
     expect(loadConfig().opponentSampleMode).toBe('nucleus')
-    expect(loadConfig().opponentTopP).toBe(0.9)
+    expect(loadConfig().opponentTopP).toBe(0.8)
     expect(loadConfig().timeControl).toEqual({ initial: 180, increment: 0 })
   })
 
@@ -54,16 +54,16 @@ describe('config persistence', () => {
   it('accepts opponent sampling mode and nucleus p', () => {
     const merged = mergeConfig(DEFAULT_CONFIG, {
       opponentSampleMode: 'argmax',
-      opponentTopP: 0.8,
+      opponentTopP: 0.75,
     })
     expect(merged.opponentSampleMode).toBe('argmax')
-    expect(merged.opponentTopP).toBe(0.8)
+    expect(merged.opponentTopP).toBe(0.75)
   })
 
   it('defaults sampling when the stored config predates it', () => {
     const merged = mergeConfig(DEFAULT_CONFIG, { opponentElo: 1800 } as Partial<typeof DEFAULT_CONFIG>)
     expect(merged.opponentSampleMode).toBe('nucleus')
-    expect(merged.opponentTopP).toBe(0.9)
+    expect(merged.opponentTopP).toBe(0.8)
   })
 
   it('rejects an invalid sampling mode and clamps nucleus p', () => {

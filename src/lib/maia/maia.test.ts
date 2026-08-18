@@ -149,7 +149,7 @@ describe('sampleMove', () => {
   })
 
   it('drops the long tail the way CSSLab UCI nucleus sampling does', () => {
-    // cum: 0.50, 0.80, 0.92, 1.00 — with top-p 0.9 keep only the first two, then renormalize
+    // cum: 0.50, 0.80, 0.92, 1.00 — with top-p 0.8 keep only the first two, then renormalize
     const kept = nucleusPolicy(policy, OPPONENT_TOP_P)
     expect(kept.map((m) => m.uci)).toEqual(['f1c4', 'f1b5'])
     expect(kept[0].p).toBeCloseTo(0.625)
@@ -160,6 +160,6 @@ describe('sampleMove', () => {
 
   it('argmax always picks the top move', () => {
     expect(chooseOpponentMove(policy, 'argmax')).toBe('f1c4')
-    expect(chooseOpponentMove(policy, 'nucleus', 0.9, () => 0.999)).toBe('f1b5')
+    expect(chooseOpponentMove(policy, 'nucleus', 0.8, () => 0.999)).toBe('f1b5')
   })
 })

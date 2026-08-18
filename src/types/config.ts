@@ -42,7 +42,7 @@ export const DEFAULT_CONFIG: Config = {
   userColor: 'w',
   maiaVariant: '23m',
   opponentSampleMode: 'nucleus',
-  opponentTopP: 0.9,
+  opponentTopP: 0.8,
 }
 
 export const CONFIG_STORAGE_KEY = 'prima.config.v1'

@@ -39,7 +39,7 @@ export function decodePolicy(fen: string, logits: Float32Array | number[]): Lega
 }
 
 /** Opponent nucleus (CSSLab UCI `TopP`). 1.0 keeps hanging-piece tail mass. */
-export const OPPONENT_TOP_P = 0.9
+export const OPPONENT_TOP_P = 0.8
 
 /** Keep the p-sorted prefix whose cumulative mass is ≤ `topP` (always at least the top move). */
 export function nucleusPolicy(policy: LegalPolicy[], topP: number): LegalPolicy[] {

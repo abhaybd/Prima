@@ -125,7 +125,7 @@ export function SettingsView() {
           {config.opponentSampleMode === 'nucleus' ? (
             <Field
               label="Nucleus p"
-              tip="How long that short list is. 0.9 is the default and stays with normal human choices. Raise it toward 1.0 to allow rarer — and sometimes terrible — moves."
+              tip="How long that short list is. 0.8 is the default and stays with normal human choices. Raise it toward 1.0 to allow rarer — and sometimes terrible — moves."
             >
               <input
                 type="number"
