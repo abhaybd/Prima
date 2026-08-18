@@ -37,7 +37,7 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 **Two Maia conditionings** (same ONNX session, `elo_self` / `elo_oppo`):
 
 - Opponent: `elo_self = opponentElo`, `elo_oppo = opponentElo`. Settings **Move sampling** is `nucleus` (default, top-p `opponentTopP` = 0.8) or `argmax`. Nucleus p is shown only when nucleus is selected.
-- Expert (full distribution): `elo_self = thresholdElo`, `elo_oppo = opponentElo`
+- Expert (full distribution): `elo_self = thresholdElo`, `elo_oppo = thresholdElo`
 
 `thresholdElo` (Expert Elo in the UI) and `opponentElo` stay independent. There is no separate user Elo; the bot rating is used for both Maia opponent-policy inputs. UI copy: Maia thresholding is the **expert**; `ratio` is **optimality** (percent). Stored freeze triggers (`ratio`) stay as-is. Older records may still have `wdl` / `both`.
 

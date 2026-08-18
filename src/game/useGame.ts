@@ -242,7 +242,7 @@ export function useGame() {
     const lastPly = chess.history().length - 1
     const sfBefore = lastPly >= 0 ? ensureSfPly(lastPly, fen, false) : sfEvalOnly(fen)
     const expert = maia
-      ? maia.policy(fen, config.thresholdElo, config.opponentElo).catch((err) => {
+      ? maia.policy(fen, config.thresholdElo, config.thresholdElo).catch((err) => {
           console.warn(EVAL_LOG_PREFIX, 'expert prefetch failed', err)
           return null
         })
@@ -699,13 +699,13 @@ export function useGame() {
         const expertPromise = prefetch?.expert ?? maia.policy(
           fenBefore,
           config.thresholdElo,
-          config.opponentElo,
+          config.thresholdElo,
         )
         const [thresholdResult] = await Promise.all([expertPromise, opponentPromise])
         const threshold = thresholdResult ?? await maia.policy(
           fenBefore,
           config.thresholdElo,
-          config.opponentElo,
+          config.thresholdElo,
         )
 
         const policy = threshold.policy
