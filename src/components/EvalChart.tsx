@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { clampEvalForChart, formatEvalPawns } from '../lib/sfEval'
+import { clampEvalForChart, formatEvalPawns, normalizeMate0Eval } from '../lib/sfEval'
 import type { SfEvalPoint } from '../types/game'
 import styles from './EvalChart.module.css'
 
@@ -29,13 +29,16 @@ type ChartRow = {
 export function EvalChart({ points, selectedPly, onSelectPly }: Props) {
   if (points.length === 0) return null
 
-  const data: ChartRow[] = points.map((p) => ({
-    ply: p.ply,
-    x: p.ply + 1,
-    pawns: p.pawns,
-    display: clampEvalForChart(p.pawns),
-    mate: p.mate,
-  }))
+  const data: ChartRow[] = points.map((p) => {
+    const ev = normalizeMate0Eval({ pawns: p.pawns, mate: p.mate }, p.ply)
+    return {
+      ply: p.ply,
+      x: p.ply + 1,
+      pawns: ev.pawns,
+      display: clampEvalForChart(ev.pawns),
+      mate: ev.mate,
+    }
+  })
   const peak = Math.max(1, ...data.map((d) => Math.abs(d.display)))
   const cap = Math.min(8, Math.max(1, Math.ceil(peak * 2) / 2))
   const domain: [number, number] = [-cap, cap]

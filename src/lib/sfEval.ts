@@ -21,7 +21,7 @@ export function sideToMoveFromFen(fen: string): 'w' | 'b' {
 export function stmScoreToPawns(score: UciScore): number {
   if (score.kind === 'cp') return score.cp / 100
   const n = score.mate
-  if (n === 0) return MATE_PAWNS
+  if (n === 0) return -MATE_PAWNS
   const mag = MATE_PAWNS - Math.min(Math.abs(n), MATE_PAWNS - 1)
   return n > 0 ? mag : -mag
 }
@@ -34,6 +34,24 @@ export function whitePovMate(stmMate: number, sideToMove: 'w' | 'b'): number {
   return sideToMove === 'w' ? stmMate : -stmMate
 }
 
+/** White-POV eval when `matedSide` is checkmated (they are to move and have no legal replies). */
+export function evalFromCheckmate(matedSide: 'w' | 'b'): SfEval {
+  return { pawns: matedSide === 'w' ? -MATE_PAWNS : MATE_PAWNS, mate: 0 }
+}
+
+/** White-POV pawns for mate-now after `ply` (even = White just moved). */
+export function mate0WhitePovPawns(ply: number): number {
+  return ply % 2 === 0 ? MATE_PAWNS : -MATE_PAWNS
+}
+
+/** `mate 0` has no sign; use ply so a White mate is never shown as Black's. */
+export function normalizeMate0Eval(eval_: SfEval, ply: number): SfEval {
+  if (eval_.mate !== 0) return eval_
+  const pawns = mate0WhitePovPawns(ply)
+  if (eval_.pawns === pawns) return eval_
+  return { ...eval_, pawns }
+}
+
 /** Use the last score in `lines` (deepest info before bestmove). */
 export function evalFromInfoLines(lines: readonly string[], sideToMove: 'w' | 'b'): SfEval {
   let last: UciScore | null = null
@@ -43,14 +61,20 @@ export function evalFromInfoLines(lines: readonly string[], sideToMove: 'w' | 'b
   }
   if (!last) return { pawns: 0 }
   const pawns = whitePovPawns(stmScoreToPawns(last), sideToMove)
-  if (last.kind === 'mate') return { pawns, mate: whitePovMate(last.mate, sideToMove) }
+  if (last.kind === 'mate') {
+    const mate = last.mate === 0 ? 0 : whitePovMate(last.mate, sideToMove)
+    return { pawns, mate }
+  }
   return { pawns }
 }
 
 export function formatEvalPawns(eval_: SfEval | null | undefined): string {
   if (!eval_) return '—'
   const { mate, pawns } = eval_
-  if (mate != null && mate !== 0) return mate > 0 ? `#${mate}` : `-#${-mate}`
+  if (mate != null) {
+    if (mate === 0) return pawns < 0 ? '-#' : '#'
+    return mate > 0 ? `#${mate}` : `-#${-mate}`
+  }
   const v = Math.round(pawns * 100) / 100
   if (v === 0) return '0.00'
   return `${v > 0 ? '+' : ''}${v.toFixed(2)}`
@@ -62,10 +86,11 @@ export function evalAtPly(
   timeline: readonly SfEvalPoint[] | undefined,
 ): SfEval | null {
   if (move?.sfEval !== undefined) {
-    return move.sfMate != null ? { pawns: move.sfEval, mate: move.sfMate } : { pawns: move.sfEval }
+    const raw = move.sfMate != null ? { pawns: move.sfEval, mate: move.sfMate } : { pawns: move.sfEval }
+    return normalizeMate0Eval(raw, ply)
   }
   const point = timeline?.find((p) => p.ply === ply)
-  return point ? { pawns: point.pawns, mate: point.mate } : null
+  return point ? normalizeMate0Eval({ pawns: point.pawns, mate: point.mate }, ply) : null
 }
 
 export function timelineFromMoves(

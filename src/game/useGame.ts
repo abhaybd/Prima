@@ -29,6 +29,7 @@ import { commitAttempts, freezeVerdict, isGameDecided, isRealFreezeTrigger, mayb
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { chooseOpponentMove, moveProb, topMove } from '../lib/maia/decode'
 import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type EvalComment } from '../lib/pgn'
+import { evalFromCheckmate } from '../lib/sfEval'
 import { loadConfig } from '../store/config'
 import { putGame, putMove } from '../store/db'
 import { DEFAULT_CONFIG, type Color, type Config, type TimeControl } from '../types/config'
@@ -173,6 +174,8 @@ export function useGame() {
   }
 
   const sfEvalOnly = async (fen: string): Promise<SfEval | null> => {
+    const board = newChess(fen)
+    if (board.isCheckmate()) return evalFromCheckmate(board.turn())
     const sf = sfRef.current
     if (!sf) return null
     const gen = sfGenRef.current
@@ -190,6 +193,14 @@ export function useGame() {
   const queueSfEval = (ply: number, fenAfter: string, isUserPly: boolean): Promise<SfEval | null> => {
     const existing = sfPlyTasksRef.current.get(ply)
     if (existing) return existing
+    const after = newChess(fenAfter)
+    if (after.isCheckmate()) {
+      const point = evalFromCheckmate(after.turn())
+      applySfPoint(ply, point, isUserPly)
+      const done = Promise.resolve(point)
+      sfPlyTasksRef.current.set(ply, done)
+      return done
+    }
     const sf = sfRef.current
     if (!sf) {
       const empty = Promise.resolve(null)
@@ -416,13 +427,16 @@ export function useGame() {
         evaluated: extras.evaluated,
         hadRealFreeze,
       }
-      if (extras.sfAfter) {
-        move.sfEval = extras.sfAfter.pawns
-        if (extras.sfAfter.mate != null) move.sfMate = extras.sfAfter.mate
+      const afterEval = chess.isCheckmate()
+        ? evalFromCheckmate(chess.turn())
+        : extras.sfAfter
+      if (afterEval) {
+        move.sfEval = afterEval.pawns
+        if (afterEval.mate != null) move.sfMate = afterEval.mate
       }
       await recordMove(move)
       savedMovesRef.current.set(ply, move)
-      if (extras.sfAfter) applySfPoint(ply, extras.sfAfter, false)
+      if (afterEval) applySfPoint(ply, afterEval, false)
       else queueSfEval(ply, chess.fen(), true)
       if (pending.didFreeze && config.freezeClockMode === 'penalty') {
         const deducted = deductMs(

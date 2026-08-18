@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   clampEvalForChart,
   evalAtPly,
+  evalFromCheckmate,
   evalFromInfoLines,
   formatEvalPawns,
+  mate0WhitePovPawns,
+  normalizeMate0Eval,
   parseUciScore,
   sideToMoveFromFen,
   stmScoreToPawns,
@@ -47,6 +50,7 @@ describe('normalize to White-POV pawns', () => {
     expect(stmScoreToPawns({ kind: 'mate', mate: 1 })).toBe(99)
     expect(stmScoreToPawns({ kind: 'mate', mate: 3 })).toBe(97)
     expect(stmScoreToPawns({ kind: 'mate', mate: -2 })).toBe(-98)
+    expect(stmScoreToPawns({ kind: 'mate', mate: 0 })).toBe(-100)
   })
 
   it('flips STM scores when Black is to move', () => {
@@ -73,6 +77,12 @@ describe('normalize to White-POV pawns', () => {
     expect(evalFromInfoLines(lines, 'b')).toEqual({ pawns: -97, mate: -3 })
   })
 
+  it('treats mate 0 as the side to move already mated', () => {
+    const lines = ['info depth 0 score mate 0', 'bestmove (none)']
+    expect(evalFromInfoLines(lines, 'b')).toEqual({ pawns: 100, mate: 0 })
+    expect(evalFromInfoLines(lines, 'w')).toEqual({ pawns: -100, mate: 0 })
+  })
+
   it('reads side to move from FEN', () => {
     expect(sideToMoveFromFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')).toBe('w')
     expect(
@@ -92,6 +102,8 @@ describe('formatEvalPawns', () => {
   it('shows mate as #n from White POV', () => {
     expect(formatEvalPawns({ pawns: 97, mate: 3 })).toBe('#3')
     expect(formatEvalPawns({ pawns: -98, mate: -2 })).toBe('-#2')
+    expect(formatEvalPawns({ pawns: 100, mate: 0 })).toBe('#')
+    expect(formatEvalPawns({ pawns: -100, mate: 0 })).toBe('-#')
   })
 })
 
@@ -103,6 +115,21 @@ describe('eval lookup', () => {
       mate: 1,
     })
     expect(evalAtPly(2, {}, [{ ply: 1, pawns: 0.1 }])).toBeNull()
+  })
+
+  it('scores checkmate from the mated side, not Stockfish sign', () => {
+    expect(evalFromCheckmate('b')).toEqual({ pawns: 100, mate: 0 })
+    expect(evalFromCheckmate('w')).toEqual({ pawns: -100, mate: 0 })
+    expect(mate0WhitePovPawns(6)).toBe(100)
+    expect(mate0WhitePovPawns(7)).toBe(-100)
+  })
+
+  it('shows a White mate as # even if mate 0 was stored inverted', () => {
+    expect(normalizeMate0Eval({ pawns: -100, mate: 0 }, 6)).toEqual({ pawns: 100, mate: 0 })
+    expect(evalAtPly(6, { sfEval: -100, sfMate: 0 }, [])).toEqual({ pawns: 100, mate: 0 })
+    expect(evalAtPly(7, { sfEval: 100, sfMate: 0 }, [])).toEqual({ pawns: -100, mate: 0 })
+    expect(formatEvalPawns(evalAtPly(6, { sfEval: -100, sfMate: 0 }, []))).toBe('#')
+    expect(clampEvalForChart(evalAtPly(6, { sfEval: -100, sfMate: 0 }, [])!.pawns)).toBe(8)
   })
 
   it('builds a timeline from stored user moves', () => {
