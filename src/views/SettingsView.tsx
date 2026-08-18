@@ -166,6 +166,12 @@ export function SettingsView() {
               onChange={(e) => patch('tauRatio', Number(e.target.value) / 100)}
             />
           </Field>
+        </div>
+      </section>
+
+      <section className="panel">
+        <h2>Freeze behavior</h2>
+        <div className={styles.grid}>
           <Field
             label="Game decided (pawns)"
             tip="No freeze when Stockfish already sees a decisive result for the same side before and after your move. Default 7. Set 0 to always score."
@@ -178,12 +184,6 @@ export function SettingsView() {
               onChange={(e) => patch('gameDecidedThreshold', Number(e.target.value))}
             />
           </Field>
-        </div>
-      </section>
-
-      <section className="panel">
-        <h2>Freeze behavior</h2>
-        <div className={styles.grid}>
           <Field
             label="Max retries"
             tip="After this many failed attempts in a freeze, the expert's top move is shown as an arrow. You can play any move."
