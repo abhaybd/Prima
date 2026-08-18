@@ -20,6 +20,7 @@ describe('config persistence', () => {
     }
     Object.defineProperty(globalThis, 'localStorage', { value: ls, configurable: true })
     expect(loadConfig().tauRatio).toBe(DEFAULT_CONFIG.tauRatio)
+    expect(loadConfig().gameDecidedThreshold).toBe(7)
     expect(loadConfig().opponentElo).toBe(1000)
     expect(loadConfig().opponentSampleMode).toBe('nucleus')
     expect(loadConfig().opponentTopP).toBe(0.9)
@@ -81,6 +82,15 @@ describe('config persistence', () => {
     expect(merged.freezeGraceSeconds).toBe(3)
   })
 
+  it('accepts a game-decided threshold and treats missing as the default', () => {
+    expect(mergeConfig(DEFAULT_CONFIG, { gameDecidedThreshold: 5 }).gameDecidedThreshold).toBe(5)
+    expect(mergeConfig(DEFAULT_CONFIG, { gameDecidedThreshold: 0 }).gameDecidedThreshold).toBe(0)
+    expect(
+      mergeConfig(DEFAULT_CONFIG, { opponentElo: 1800 } as Partial<typeof DEFAULT_CONFIG>)
+        .gameDecidedThreshold,
+    ).toBe(7)
+  })
+
   it('round-trips through save/load', () => {
     const memory = new Map<string, string>()
     Object.defineProperty(globalThis, 'localStorage', {
@@ -111,7 +121,8 @@ describe('config persistence', () => {
       JSON.stringify({ opponentElo: 1500, thresholdElo: 2000, timeControl: { initial: 180, increment: 0 } }),
     )
     expect(loadConfig().opponentElo).toBe(1000)
-    expect(loadConfig().configVersion).toBe(4)
+    expect(loadConfig().configVersion).toBe(5)
+    expect(loadConfig().gameDecidedThreshold).toBe(7)
   })
 
   it('drops the old verdictGateMs setting', () => {
@@ -160,7 +171,7 @@ describe('config persistence', () => {
     expect(loadConfig()).not.toHaveProperty('wdlClauseEnabled')
     expect(loadConfig()).not.toHaveProperty('sfMovetimeMs')
     expect(loadConfig().opponentElo).toBe(1800)
-    expect(loadConfig().configVersion).toBe(4)
+    expect(loadConfig().configVersion).toBe(5)
   })
 
   it('clears stored config so load returns defaults', () => {

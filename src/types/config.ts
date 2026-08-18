@@ -19,6 +19,7 @@ export interface Config {
   freezePenaltySeconds: number
   freezeGraceSeconds: number
   decoyFreezeRate: number
+  gameDecidedThreshold: number
   timeControl: TimeControl
   userColor: UserColorPref
   maiaVariant: MaiaVariant
@@ -27,7 +28,7 @@ export interface Config {
 }
 
 export const DEFAULT_CONFIG: Config = {
-  configVersion: 4,
+  configVersion: 5,
   opponentElo: 1000,
   thresholdElo: 2000,
   tauRatio: 0.15,
@@ -36,6 +37,7 @@ export const DEFAULT_CONFIG: Config = {
   freezePenaltySeconds: 5,
   freezeGraceSeconds: 3,
   decoyFreezeRate: 0.08,
+  gameDecidedThreshold: 7,
   timeControl: { initial: 180, increment: 0 },
   userColor: 'w',
   maiaVariant: '23m',

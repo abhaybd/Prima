@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createMaiaClient, type MaiaClient } from '../engine/maiaClient'
+import { createMaiaClient, type MaiaClient, type PolicyResult } from '../engine/maiaClient'
 import { createStockfishClient, type StockfishClient } from '../engine/stockfishClient'
 import {
   applyUci,
@@ -25,14 +25,14 @@ import {
   tickClocks,
   type ClockState,
 } from '../lib/clocks'
-import { commitAttempts, freezeVerdict, isRealFreezeTrigger, maybeDecoy, policyRatio, recordedTrigger, skipEvalReason } from '../lib/freeze'
+import { commitAttempts, freezeVerdict, isGameDecided, isRealFreezeTrigger, maybeDecoy, policyRatio, recordedTrigger, skipEvalReason } from '../lib/freeze'
 import { loadOpeningBook, type OpeningBook } from '../lib/openingBook'
 import { chooseOpponentMove, moveProb, topMove } from '../lib/maia/decode'
 import { logEvalComment, logGamePgn, pgnWithEvalComments, EVAL_LOG_PREFIX, type EvalComment } from '../lib/pgn'
 import { loadConfig } from '../store/config'
 import { putGame, putMove } from '../store/db'
 import { DEFAULT_CONFIG, type Color, type Config, type TimeControl } from '../types/config'
-import type { FreezeTrigger, GameRecord, MoveRecord, MoveResolved, SfEvalPoint } from '../types/game'
+import type { FreezeTrigger, GameRecord, MoveRecord, MoveResolved, SfEval, SfEvalPoint } from '../types/game'
 import type { DebugGameMeta } from '../lib/debug'
 
 export type PlayStatus =
@@ -54,6 +54,12 @@ export interface LoadProgress {
   loaded: number
   total: number
   label: string
+}
+
+interface UserTurnPrefetch {
+  fen: string
+  sfBefore: Promise<SfEval | null>
+  expert: Promise<PolicyResult | null>
 }
 
 interface PendingPly {
@@ -127,6 +133,8 @@ export function useGame() {
   const sfGenRef = useRef(0)
   const sfEvalsRef = useRef<SfEvalPoint[]>([])
   const sfPendingRef = useRef<Promise<void>[]>([])
+  const sfPlyTasksRef = useRef<Map<number, Promise<SfEval | null>>>(new Map())
+  const prefetchRef = useRef<UserTurnPrefetch | null>(null)
   const savedMovesRef = useRef<Map<number, MoveRecord>>(new Map())
   const pendingRef = useRef<PendingPly | null>(null)
   const gameMetaRef = useRef<{ gameId: string; startedAt: number; userColor: Color } | null>(
@@ -149,32 +157,85 @@ export function useGame() {
     return text
   }
 
-  const queueSfEval = (ply: number, fenAfter: string, isUserPly: boolean) => {
+  const applySfPoint = (ply: number, ev: SfEval, isUserPly: boolean) => {
+    const point: SfEvalPoint = { ply, pawns: ev.pawns }
+    if (ev.mate != null) point.mate = ev.mate
+    sfEvalsRef.current = [...sfEvalsRef.current.filter((p) => p.ply !== ply), point].sort(
+      (a, b) => a.ply - b.ply,
+    )
+    if (!isUserPly) return
+    const prev = savedMovesRef.current.get(ply)
+    if (!prev) return
+    const updated: MoveRecord = { ...prev, sfEval: point.pawns }
+    if (point.mate != null) updated.sfMate = point.mate
+    savedMovesRef.current.set(ply, updated)
+    void putMove(updated)
+  }
+
+  const sfEvalOnly = async (fen: string): Promise<SfEval | null> => {
     const sf = sfRef.current
-    if (!sf) return
+    if (!sf) return null
+    const gen = sfGenRef.current
+    const gameId = gameMetaRef.current?.gameId
+    try {
+      const ev = await sf.evaluate(fen)
+      if (sfGenRef.current !== gen || gameMetaRef.current?.gameId !== gameId) return null
+      return ev.mate != null ? { pawns: ev.pawns, mate: ev.mate } : { pawns: ev.pawns }
+    } catch (err) {
+      console.warn(EVAL_LOG_PREFIX, 'stockfish eval failed', err)
+      return null
+    }
+  }
+
+  const queueSfEval = (ply: number, fenAfter: string, isUserPly: boolean): Promise<SfEval | null> => {
+    const existing = sfPlyTasksRef.current.get(ply)
+    if (existing) return existing
+    const sf = sfRef.current
+    if (!sf) {
+      const empty = Promise.resolve(null)
+      sfPlyTasksRef.current.set(ply, empty)
+      return empty
+    }
     const gen = sfGenRef.current
     const gameId = gameMetaRef.current?.gameId
     const task = sf
       .evaluate(fenAfter)
       .then(async (ev) => {
-        if (sfGenRef.current !== gen || gameMetaRef.current?.gameId !== gameId) return
-        const point: SfEvalPoint = { ply, pawns: ev.pawns }
-        if (ev.mate != null) point.mate = ev.mate
-        sfEvalsRef.current = [...sfEvalsRef.current.filter((p) => p.ply !== ply), point].sort(
-          (a, b) => a.ply - b.ply,
-        )
-        if (!isUserPly) return
-        const prev = savedMovesRef.current.get(ply)
-        if (!prev) return
-        const updated: MoveRecord = { ...prev, sfEval: point.pawns }
-        if (point.mate != null) updated.sfMate = point.mate
-        savedMovesRef.current.set(ply, updated)
-        await putMove(updated)
+        if (sfGenRef.current !== gen || gameMetaRef.current?.gameId !== gameId) return null
+        const point: SfEval = ev.mate != null ? { pawns: ev.pawns, mate: ev.mate } : { pawns: ev.pawns }
+        applySfPoint(ply, point, isUserPly)
+        return point
       })
       .catch((err) => {
         console.warn(EVAL_LOG_PREFIX, 'stockfish eval failed', err)
+        return null
       })
-    sfPendingRef.current.push(task)
+    sfPlyTasksRef.current.set(ply, task)
+    sfPendingRef.current.push(task.then(() => undefined))
+    return task
+  }
+
+  const ensureSfPly = (ply: number, fen: string, isUserPly: boolean): Promise<SfEval | null> => {
+    const have = sfEvalsRef.current.find((p) => p.ply === ply)
+    if (have) return Promise.resolve(have)
+    return queueSfEval(ply, fen, isUserPly)
+  }
+
+  const prefetchUserTurn = () => {
+    const chess = chessRef.current
+    const fen = chess.fen()
+    if (prefetchRef.current?.fen === fen) return
+    const maia = maiaRef.current
+    const config = configRef.current
+    const lastPly = chess.history().length - 1
+    const sfBefore = lastPly >= 0 ? ensureSfPly(lastPly, fen, false) : sfEvalOnly(fen)
+    const expert = maia
+      ? maia.policy(fen, config.thresholdElo, config.opponentElo).catch((err) => {
+          console.warn(EVAL_LOG_PREFIX, 'expert prefetch failed', err)
+          return null
+        })
+      : Promise.resolve(null)
+    prefetchRef.current = { fen, sfBefore, expert }
   }
 
   const flushSfEvals = async (): Promise<SfEvalPoint[]> => {
@@ -254,6 +315,7 @@ export function useGame() {
       clocksRef.current = resumeClocks(clocksRef.current, meta.userColor, Date.now())
       setStatus('playing')
       syncBoard()
+      prefetchUserTurn()
       return
     }
     const maia = maiaRef.current
@@ -278,6 +340,7 @@ export function useGame() {
     clocksRef.current = resumeClocks(clocksRef.current, meta.userColor, Date.now())
     setStatus('playing')
     syncBoard()
+    prefetchUserTurn()
   }, [endGame])
 
   const recordMove = useCallback(async (move: MoveRecord) => {
@@ -297,6 +360,7 @@ export function useGame() {
         evaluated: boolean
         isForcing: boolean
         evalComment?: EvalComment
+        sfAfter?: SfEval
       },
     ) => {
       const pending = pendingRef.current
@@ -352,9 +416,14 @@ export function useGame() {
         evaluated: extras.evaluated,
         hadRealFreeze,
       }
+      if (extras.sfAfter) {
+        move.sfEval = extras.sfAfter.pawns
+        if (extras.sfAfter.mate != null) move.sfMate = extras.sfAfter.mate
+      }
       await recordMove(move)
       savedMovesRef.current.set(ply, move)
-      queueSfEval(ply, chess.fen(), true)
+      if (extras.sfAfter) applySfPoint(ply, extras.sfAfter, false)
+      else queueSfEval(ply, chess.fen(), true)
       if (pending.didFreeze && config.freezeClockMode === 'penalty') {
         const deducted = deductMs(
           clocksRef.current,
@@ -566,16 +635,63 @@ export function useGame() {
           return
         }
 
-        const thresholdPromise = maia.policy(
+        const prefetch = prefetchRef.current?.fen === fenBefore ? prefetchRef.current : null
+        const beforeEval = prefetch
+          ? await prefetch.sfBefore
+          : ply > 0
+            ? await ensureSfPly(ply - 1, fenBefore, false)
+            : await sfEvalOnly(fenBefore)
+
+        let sfAfter: SfEval | undefined
+        if (
+          beforeEval &&
+          config.gameDecidedThreshold > 0 &&
+          Math.abs(beforeEval.pawns) >= config.gameDecidedThreshold
+        ) {
+          const afterEval = await sfEvalOnly(chess.fen())
+          if (afterEval) sfAfter = afterEval
+          if (isGameDecided(beforeEval.pawns, afterEval?.pawns, config.gameDecidedThreshold)) {
+            evaluatingRef.current = false
+            stampAttemptRatio(pendingRef.current, 0)
+            const revealed = Boolean(pendingRef.current?.revealedTop)
+            const skipped: EvalComment = {
+              ply,
+              uci,
+              evaluated: false,
+              skipReason: 'decided',
+              trigger: 'none',
+              freeze: false,
+              ratio: 0,
+              tauRatio: config.tauRatio,
+            }
+            await opponentPromise
+            await acceptUserMove(uci, {
+              ratio: 0,
+              wdlDelta: 0,
+              sfBestMove: '',
+              thresholdTopMove: pendingRef.current?.revealedTop ?? '',
+              trigger: 'none',
+              resolved: revealed ? 'revealed' : 'accepted',
+              evaluated: false,
+              isForcing: isForcingMove(fenBefore, uci),
+              evalComment: skipped,
+              sfAfter,
+            })
+            return
+          }
+        }
+
+        const expertPromise = prefetch?.expert ?? maia.policy(
           fenBefore,
           config.thresholdElo,
           config.opponentElo,
         )
-
-        const [threshold] = await Promise.all([
-          thresholdPromise,
-          opponentPromise,
-        ])
+        const [thresholdResult] = await Promise.all([expertPromise, opponentPromise])
+        const threshold = thresholdResult ?? await maia.policy(
+          fenBefore,
+          config.thresholdElo,
+          config.opponentElo,
+        )
 
         const policy = threshold.policy
         const top = topMove(policy)
@@ -624,6 +740,7 @@ export function useGame() {
             evaluated: true,
             isForcing: isForcingMove(fenBefore, uci),
             evalComment: { ...evalComment, freeze: channel.freeze, trigger },
+            sfAfter,
           })
           return
         }
@@ -666,6 +783,7 @@ export function useGame() {
           evaluated: true,
           isForcing: isForcingMove(fenBefore, uci),
           evalComment: { ...evalComment, freeze: false, trigger: 'none' },
+          sfAfter,
         })
       } catch (err) {
         evaluatingRef.current = false
@@ -708,6 +826,8 @@ export function useGame() {
     debugNotesRef.current = []
     sfGenRef.current += 1
     sfEvalsRef.current = []
+    sfPlyTasksRef.current = new Map()
+    prefetchRef.current = null
     savedMovesRef.current = new Map()
     if (!sfRef.current) {
       sfRef.current = createStockfishClient()
@@ -745,7 +865,7 @@ export function useGame() {
       freezeGraceEndsAtRef.current = null
       clocksRef.current = createClocks(config.timeControl.initial, Date.now())
       moveStartRef.current = Date.now()
-      const startLine = `game ${gameId} user=${userColor} minOpt=${(config.tauRatio * 100).toFixed(0)}% book=${bookRef.current?.size ?? 0} expertElo=${config.thresholdElo} opponentElo=${config.opponentElo}`
+      const startLine = `game ${gameId} user=${userColor} minOpt=${(config.tauRatio * 100).toFixed(0)}% decided=${config.gameDecidedThreshold} book=${bookRef.current?.size ?? 0} expertElo=${config.thresholdElo} opponentElo=${config.opponentElo}`
       console.info(EVAL_LOG_PREFIX, startLine)
       const debugMeta: DebugGameMeta = {
         gameId,
@@ -781,6 +901,7 @@ export function useGame() {
       } else {
         clocksRef.current = resumeClocks(clocksRef.current, userColor, Date.now())
         syncBoard()
+        prefetchUserTurn()
       }
     } catch (err) {
       maiaRef.current?.terminate()

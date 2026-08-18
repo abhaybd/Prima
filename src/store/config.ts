@@ -75,6 +75,7 @@ export function mergeConfig(base: Config, patch: Partial<Config>): Config {
     freezePenaltySeconds: num(patch.freezePenaltySeconds, base.freezePenaltySeconds),
     freezeGraceSeconds: num(patch.freezeGraceSeconds, base.freezeGraceSeconds),
     decoyFreezeRate: num(patch.decoyFreezeRate, base.decoyFreezeRate),
+    gameDecidedThreshold: Math.max(0, num(patch.gameDecidedThreshold, base.gameDecidedThreshold)),
     timeControl,
     userColor: isUserColor(patch.userColor) ? patch.userColor : base.userColor,
     maiaVariant: isMaiaVariant(patch.maiaVariant) ? patch.maiaVariant : base.maiaVariant,

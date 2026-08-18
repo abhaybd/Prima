@@ -16,7 +16,7 @@ After you move, the app scores **optimality**: how readily a stronger human woul
 
 A freeze does not tell you *why* the move failed. Real freezes and occasional **decoy** freezes look identical, so you cannot treat a freeze as a free “this was a mistake” signal. Repeating the same move is allowed; that is treated as confidence in the original choice. After several failed attempts, the app reveals the expert’s top move as an arrow. You can play that, or any other legal move; either way the turn is recorded as a miss.
 
-Not every position is scored. The app skips evaluation while you are still in the opening book, when there is only one legal move, or when the game is already over. Once you leave the book, later moves are scored as usual.
+Not every position is scored. The app skips evaluation while you are still in the opening book, when there is only one legal move, when the game is already over, or when Stockfish already sees a decisive result for the same side before and after your move (default 7 pawns). Once you leave the book, later moves are scored as usual.
 
 ## Run
 

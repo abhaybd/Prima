@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../types/config'
-import { commitAttempts, freezeVerdict, maybeDecoy, policyRatio, plyHadRealFreeze, ratioForAttempt, recordedTrigger, shouldSkipEval, skipEvalReason } from './freeze'
+import { commitAttempts, freezeVerdict, isGameDecided, maybeDecoy, policyRatio, plyHadRealFreeze, ratioForAttempt, recordedTrigger, shouldSkipEval, skipEvalReason } from './freeze'
 
 const base = {
   legalMoveCount: 20,
@@ -24,6 +24,24 @@ describe('freeze criterion', () => {
 
   it('does not skip out-of-book opening moves', () => {
     expect(shouldSkipEval({ ...base, inOpeningBook: false })).toBe(false)
+  })
+
+  it('skips when both evals stay decisive for the same side', () => {
+    const tau = DEFAULT_CONFIG.gameDecidedThreshold
+    expect(isGameDecided(8, 7.2, tau)).toBe(true)
+    expect(isGameDecided(-9, -7, tau)).toBe(true)
+    expect(isGameDecided(100, 97, tau)).toBe(true)
+    expect(isGameDecided(7, 7, tau)).toBe(true)
+  })
+
+  it('does not skip when the eval drops, flips, or is missing', () => {
+    const tau = DEFAULT_CONFIG.gameDecidedThreshold
+    expect(isGameDecided(8, 4, tau)).toBe(false)
+    expect(isGameDecided(8, -8, tau)).toBe(false)
+    expect(isGameDecided(2, 8, tau)).toBe(false)
+    expect(isGameDecided(undefined, 8, tau)).toBe(false)
+    expect(isGameDecided(8, null, tau)).toBe(false)
+    expect(isGameDecided(8, 8, 0)).toBe(false)
   })
 
   it('uses a ratio, not a raw probability', () => {

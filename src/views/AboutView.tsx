@@ -44,8 +44,9 @@ export function AboutView() {
         </p>
         <p>
           Not every position is scored. The app skips evaluation while you are still in the opening
-          book, when there is only one legal move, or when the game is already over. Once you leave
-          the book, later moves are scored as usual. Optimality and attempts show up on the
+          book, when there is only one legal move, when the game is already over, or when Stockfish
+          already sees a decisive result for the same side before and after your move. Once you
+          leave the book, later moves are scored as usual. Optimality and attempts show up on the
           post-game report, not during play.
         </p>
       </section>

@@ -166,6 +166,18 @@ export function SettingsView() {
               onChange={(e) => patch('tauRatio', Number(e.target.value) / 100)}
             />
           </Field>
+          <Field
+            label="Game decided (pawns)"
+            tip="No freeze when Stockfish already sees a decisive result for the same side before and after your move. Default 7. Set 0 to always score."
+          >
+            <input
+              type="number"
+              step="1"
+              min={0}
+              value={config.gameDecidedThreshold}
+              onChange={(e) => patch('gameDecidedThreshold', Number(e.target.value))}
+            />
+          </Field>
         </div>
       </section>
 

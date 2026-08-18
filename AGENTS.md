@@ -27,11 +27,11 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 **Freeze overlay.** Identical for real and decoy freezes. No evals, no channel, no hints during play. Reveal only after `maxRetries` or on the post-game report. After `maxRetries`, show the expert top as an arrow; the user may play any legal move. Do not auto-play the expert move.
 
-**Stockfish eval.** After a ply is committed (accepted user move or opponent move), queue a short Stockfish search. Do not await it for freeze/verdict/clocks. Store White-POV **pawns** (`cp / 100`); if SF reports mate, also store mate-in-N (positive = White mates). Frozen attempts that are undone are not evaluated. Report: eval timeline (ply on x, pawns on y) and an Eval column on the moves table. Older games without evals omit the graph.
+**Stockfish eval.** After a ply is committed (accepted user move or opponent move), queue a short Stockfish search. Store White-POV **pawns** (`cp / 100`); if SF reports mate, also store mate-in-N (positive = White mates). Frozen attempts that are undone are not evaluated. Do not await Stockfish for clocks or for the optimality verdict. Await the after-eval only for the game-decided skip, and only when the before-eval is already decisive. The before-eval is the search of the position at the start of the user’s turn (already queued after the opponent ply, or startpos). Report: eval timeline (ply on x, pawns on y) and an Eval column on the moves table. Older games without evals omit the graph.
 
 **Decoys.** With probability `decoyFreezeRate`, freeze a move that passed optimality. Log `trigger: 'decoy'`; exclude from quality metrics. Repeating the **same** move is accepted (confidence) — do not roll another decoy on that retry. A different move is re-evaluated normally. If that later move passes without a real freeze, the ply still logs `decoy` so the report can show both tries. Report move rows: real freezes stay highlighted as today; decoys use the same yellow (`#f0c14b`) as elsewhere. Do not show a trigger column.
 
-**Game loop.** On user move `m` in `p`: start verdict and opponent sample together. Freeze → undo `m`, discard the opponent move. Pass → apply opponent move.
+**Game loop.** When it becomes the user’s turn, prefetch the expert Maia policy (full legal distribution) and ensure the Stockfish eval of the current position. On user move `m` in `p`: look up `m` in that policy; start the opponent sample from the position after `m`. Freeze → undo `m`, discard the opponent move. Pass → apply opponent move.
 
 **Two Maia conditionings** (same ONNX session, `elo_self` / `elo_oppo`):
 
@@ -44,7 +44,7 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 **Verdict.** `freeze ⇔ ratio < tauRatio`. New games log `none | ratio | decoy`. Treat stored `wdl` / `both` as real freezes when reading old games.
 
-**Skip eval** (no freeze possible): position after `m` is in the opening book; one legal move; position after `m` is terminal. Book is the first 6 full moves of Stockfish `8moves_v3`. Lookup uses the first four FEN fields (board, STM, castling, EP). A move that leaves the book is evaluated.
+**Skip eval** (no freeze possible): position after `m` is in the opening book; one legal move; position after `m` is terminal; both Stockfish evals (before and after `m`) are decisive for the same side (`|eval| ≥ gameDecidedThreshold`, default 7 pawns; mate counts). Missing evals do not skip. Threshold `≤ 0` disables the check. Book is the first 6 full moves of Stockfish `8moves_v3`. Lookup uses the first four FEN fields (board, STM, castling, EP). A move that leaves the book is evaluated.
 
 **Maia I/O.** Tokens `[1,64,12]` piece one-hot; **mirror board and colors when Black to move**. Vocab is 4352 (4096 from–to + 256 white-perspective promotions `q,r,b,n`). Map Black UCIs through `mirrorMove` before indexing. Wrong flip or promo decode looks plausible — keep the tokenize/decode fixtures (startpos, promotion, Black to move).
 

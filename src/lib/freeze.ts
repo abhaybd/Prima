@@ -1,6 +1,6 @@
 import type { FreezeTrigger } from '../types/game'
 
-export type SkipReason = 'opening' | 'forced' | 'terminal'
+export type SkipReason = 'opening' | 'forced' | 'terminal' | 'decided'
 
 export interface SkipEvalInput {
   legalMoveCount: number
@@ -17,6 +17,19 @@ export function skipEvalReason(input: SkipEvalInput): SkipReason | null {
 
 export function shouldSkipEval(input: SkipEvalInput): boolean {
   return skipEvalReason(input) !== null
+}
+
+/** True when both White-POV evals are at least `threshold` pawns for the same side. */
+export function isGameDecided(
+  beforePawns: number | null | undefined,
+  afterPawns: number | null | undefined,
+  threshold: number,
+): boolean {
+  if (!(threshold > 0)) return false
+  if (beforePawns == null || afterPawns == null) return false
+  if (!Number.isFinite(beforePawns) || !Number.isFinite(afterPawns)) return false
+  if (Math.abs(beforePawns) < threshold || Math.abs(afterPawns) < threshold) return false
+  return Math.sign(beforePawns) === Math.sign(afterPawns)
 }
 
 export function policyRatio(pMove: number, pTop: number): number {

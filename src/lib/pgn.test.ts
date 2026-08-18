@@ -41,6 +41,19 @@ describe('formatEvalComment', () => {
     expect(text).not.toMatch(/[{}]/)
   })
 
+  it('labels skipped game-decided moves', () => {
+    const text = formatEvalComment({
+      ply: 40,
+      uci: 'a2a3',
+      evaluated: false,
+      skipReason: 'decided',
+      trigger: 'none',
+      freeze: false,
+    })
+    expect(text).toContain('skip=decided')
+    expect(text).toContain('eval=no')
+  })
+
   it('labels skipped opening-book moves', () => {
     const text = formatEvalComment({
       ply: 2,
