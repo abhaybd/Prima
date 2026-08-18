@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
@@ -6,25 +6,10 @@ import { defineConfig, type Plugin } from 'vitest/config'
 
 const root = dirname(fileURLToPath(import.meta.url))
 
-const ORT_FILES = ['ort-wasm-simd-threaded.wasm', 'ort-wasm-simd-threaded.mjs']
-
-function copyOrtWasm(): void {
-  const dest = resolve(root, 'public/ort')
-  const srcDir = resolve(root, 'node_modules/onnxruntime-web/dist')
-  mkdirSync(dest, { recursive: true })
-  for (const file of ORT_FILES) {
-    copyFileSync(resolve(srcDir, file), resolve(dest, file))
-  }
-}
-
-function ortAssetsPlugin(): Plugin {
+function missingOnnxPlugin(): Plugin {
   return {
-    name: 'ort-assets',
-    buildStart() {
-      copyOrtWasm()
-    },
+    name: 'missing-onnx',
     configureServer(server) {
-      copyOrtWasm()
       server.middlewares.use((req, res, next) => {
         const url = req.url?.split('?')[0] ?? ''
         if (!url.endsWith('.onnx')) {
@@ -53,7 +38,8 @@ function viteBase(): string {
 
 export default defineConfig({
   base: viteBase(),
-  plugins: [react(), ortAssetsPlugin()],
+  plugins: [react(), missingOnnxPlugin()],
+  assetsInclude: ['**/*.wasm'],
   optimizeDeps: {
     exclude: ['onnxruntime-web'],
   },

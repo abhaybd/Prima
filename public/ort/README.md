@@ -1,5 +1,5 @@
-ONNX Runtime WebAssembly files are copied here from
-`node_modules/onnxruntime-web/dist` when Vite starts.
+ONNX Runtime WebAssembly is no longer copied here.
 
-Needed so the Maia worker can load WASM from a stable URL (`/ort/…`)
-instead of next to the bundled worker script.
+The Maia worker loads `ort-wasm-simd-threaded.{wasm,mjs}` through Vite `?url`
+imports from `onnxruntime-web/dist`. Files in this folder are leftover copies
+and are gitignored. Vite cannot import `.mjs` from `public/` as a module.

@@ -30,7 +30,7 @@ The first time you click **New game**, the app downloads a Maia-3 ONNX model fro
 
 If you would rather skip Hugging Face, put `maia3-23m.fp16.onnx` or `maia3-5m.fp16.onnx` in `public/models/`. Those files come from [bqrio/maia3-onnx](https://huggingface.co/bqrio/maia3-onnx).
 
-When the dev server or a production build starts, Vite copies ONNX Runtime WASM into `public/ort/`.
+Vite bundles ONNX Runtime WASM from `onnxruntime-web` (do not import those files from `public/ort/`).
 
 ## License
 

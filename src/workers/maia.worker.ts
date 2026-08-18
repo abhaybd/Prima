@@ -1,5 +1,6 @@
 import * as ort from 'onnxruntime-web/wasm'
 import { decodePolicy } from '../lib/maia/decode'
+import { ortWasmPaths } from '../lib/maia/ortAssets'
 import { tokenizeBoard } from '../lib/maia/tokenize'
 import type { RpcRequest, RpcResponse } from '../engine/rpc'
 
@@ -11,13 +12,9 @@ function reply(id: number, result?: unknown, error?: string): void {
 }
 
 function configureOrt(): void {
-  const base = import.meta.env.BASE_URL
   ort.env.wasm.numThreads = 1
   ort.env.wasm.proxy = false
-  ort.env.wasm.wasmPaths = {
-    wasm: `${base}ort/ort-wasm-simd-threaded.wasm`,
-    mjs: `${base}ort/ort-wasm-simd-threaded.mjs`,
-  }
+  ort.env.wasm.wasmPaths = ortWasmPaths
 }
 
 async function load(buffer: ArrayBuffer): Promise<void> {

@@ -14,7 +14,6 @@ src/game/         useGame — loop, freeze state, clocks
 src/views/        Play, Settings, Report, Dashboard, About
 src/components/   Board, Clocks, FreezeOverlay, MoveList, EvalChart
 public/engines/   stockfish-18-lite-single.{js,wasm} — eval Worker during play (not freeze)
-public/ort/       copied from onnxruntime-web on Vite start (gitignored)
 public/models/    optional local ONNX; missing .onnx URLs must 404, never SPA HTML
 public/books/     first 6 moves of 8moves_v3 as position hashes; skip eval while the move stays in book
 ```
@@ -48,7 +47,7 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 **Maia I/O.** Tokens `[1,64,12]` piece one-hot; **mirror board and colors when Black to move**. Vocab is 4352 (4096 from–to + 256 white-perspective promotions `q,r,b,n`). Map Black UCIs through `mirrorMove` before indexing. Wrong flip or promo decode looks plausible — keep the tokenize/decode fixtures (startpos, promotion, Black to move).
 
-**ORT.** `onnxruntime-web/wasm`, `numThreads = 1`, `proxy = false`, wasm files from `/ort/`. Do not assume WebGPU in the worker.
+**ORT.** `onnxruntime-web/wasm`, `numThreads = 1`, `proxy = false`. Load `ort-wasm-simd-threaded.{wasm,mjs}` with Vite `?url` via package exports (`onnxruntime-web/ort-wasm-simd-threaded.mjs`, not `dist/` or `public/ort/`). Do not assume WebGPU in the worker.
 
 **Models.** Fetch Hugging Face first, then `/models/…`. Validate bytes before caching or passing to ORT (`assertOnnxModel`): reject HTML and tiny files. Vite must 404 missing `.onnx` paths — SPA fallback of `index.html` as a “model” causes protobuf parse errors. Drop invalid Cache Storage entries.
 
@@ -61,6 +60,6 @@ Main thread owns UI, chess.js, clocks, freeze overlay. It never blocks on engine
 
 ## Tests
 
-`npm test` (Vitest). Cover freeze/exclusions, Maia vocab/tokenize/decode, ONNX-bytes guard, opening book, config defaults, Stockfish score→pawns. Do not add Playwright unless asked.
+`npm test` (Vitest). Cover freeze/exclusions, Maia vocab/tokenize/decode, ONNX-bytes guard, ORT wasm `?url` (not `public/ort`), opening book, config defaults, Stockfish score→pawns. Do not add Playwright unless asked.
 
 When changing freeze math, add a unit test first. When changing Maia encode/decode, extend `src/lib/maia/maia.test.ts` before wiring UI.
