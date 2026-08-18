@@ -11,7 +11,8 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px 16px;
-  padding: 12px 24px;
+  padding: max(12px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) 12px
+    max(24px, env(safe-area-inset-left));
   border-bottom: 1px solid #212830;
   background: #0e1116;
 }
@@ -55,11 +56,12 @@
 .main {
   flex: 1;
   min-width: 0;
-  padding: 20px 24px 32px;
+  padding: 20px max(24px, env(safe-area-inset-right)) 32px max(24px, env(safe-area-inset-left));
 }
 
 .footer {
-  padding: 12px 24px 20px;
+  padding: 12px max(24px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -90,8 +92,8 @@
   .header,
   .main,
   .footer {
-    padding-left: 12px;
-    padding-right: 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
   }
 
   .footer {
